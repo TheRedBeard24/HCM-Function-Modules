@@ -1,0 +1,57 @@
+FUNCTION ZHR_LEAVERQ_GET_NOTEXML.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID) TYPE  GUID_32
+*"  EXPORTING
+*"     REFERENCE(CONTENT) TYPE  STRING
+*"----------------------------------------------------------------------
+DATA : lx_note TYPE ztb_guidnote.
+
+SELECT SINGLE * FROM ztb_guidnote into lx_note WHERE guid = guid.
+CHECK lx_note IS NOT INITIAL.
+
+*DATA : lv_len TYPE i.
+*DATA : lv_div TYPE i.
+*DATA : lv_lenf TYPE i.
+*DATA : lv_leng TYPE i.
+DATA : lv_str TYPE string.
+
+
+
+DATA : content2 TYPE string.
+TYPES: BEGIN OF ty_text,
+       line TYPE char255,
+       END OF ty_text.
+DATA : lt_text TYPE TABLE OF ty_text.
+DATA : lx_text TYPE   ty_text.
+content2 = lx_note-note.
+CALL FUNCTION 'SOTR_SERV_STRING_TO_TABLE'
+  EXPORTING
+    text                      = content2
+*   FLAG_NO_LINE_BREAKS       = 'X'
+*   LINE_LENGTH               =
+*   LANGU                     = SY-LANGU
+  tables
+    text_tab                  = lt_text
+          .
+*DESCRIBE TABLE lt_text LINES lv_leng.
+CONCATENATE
+'<tr>'
+ '<td>' 'Dengan Catatan Sebagai berikut :' '</td>'
+ '</tr>' INTO lv_str.
+
+loop at lt_text INTO lx_text.
+CONCATENATE lv_str
+'<tr>'
+ '<td>' lx_text-line '</td>'
+ '</tr>'
+ into lv_str.
+ENDLOOP.
+
+CONCATENATE '<table>'  lv_str '</table>' INTO lv_str.
+content = lv_str.
+
+
+
+ENDFUNCTION.
