@@ -1,0 +1,39 @@
+FUNCTION ZHR_LEAVERQ_COMPLETINGWORKITEM.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(WORKITEM_ID) TYPE  SWR_STRUCT-WORKITEMID
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"----------------------------------------------------------------------
+
+
+DATA : zWORKITEM_ID    TYPE SWR_STRUCT-WORKITEMID,
+       DECISION_NOTE  TYPE SWRSOBJID ,
+       MESSAGE_LINES  type table of SWR_MESSAG,
+       MESSAGE_STRUCT type table of SWR_MSTRUC.
+
+      zWORKITEM_ID = WORKITEM_ID ."+ 1.
+
+      DECISION_NOTE = 'DELETED'.
+
+
+      CALL FUNCTION 'SAP_WAPI_DECISION_COMPLETE'
+        EXPORTING
+          workitem_id         = zWORKITEM_ID
+         LANGUAGE             = SY-LANGU
+         USER                 = SY-UNAME
+         decision_key         = '0003'
+         DO_COMMIT            = 'X'
+         DECISION_NOTE        = DECISION_NOTE
+*       IMPORTING
+*         RETURN_CODE          =
+*         NEW_STATUS           =
+       TABLES
+         MESSAGE_LINES        = MESSAGE_LINES
+         MESSAGE_STRUCT       = MESSAGE_STRUCT
+                .
+      commit WORK.
+
+
+ENDFUNCTION.
