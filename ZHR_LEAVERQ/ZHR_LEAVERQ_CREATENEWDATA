@@ -1,0 +1,410 @@
+FUNCTION zhr_leaverq_createnewdata.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(OLD_DATA) TYPE  ZTB_GUIDMAP
+*"     REFERENCE(NEW_GUID) TYPE  GUID_32
+*"     REFERENCE(INFTY) TYPE  CHAR4
+*"     REFERENCE(LEAVE_REQ) TYPE  ZST_HCM_LEAVE_RE
+*"     REFERENCE(NEW_NOTE) TYPE  STRING
+*"     VALUE(SECRETARY) TYPE  CHAR1 OPTIONAL
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     REFERENCE(MESS) TYPE  CHAR255
+*"  CHANGING
+*"     REFERENCE(PA2001) TYPE  ZTB_P2001 OPTIONAL
+*"     REFERENCE(PA2002) TYPE  ZTB_P2002 OPTIONAL
+*"----------------------------------------------------------------------
+  DATA : lx_ztb_guidmap TYPE ztb_guidmap.
+  DATA : e_tage TYPE c LENGTH 4.
+  DATA : objkey TYPE swr_struct-object_key.
+  DATA : lt_msglines TYPE STANDARD TABLE OF swr_messag,
+         lt_msgstruc TYPE STANDARD TABLE OF swr_mstruc,
+          wa_msglines TYPE swr_messag,
+         wa_msgstruc TYPE swr_mstruc.
+  DATA : lx_cont TYPE swr_cont.
+  DATA : lt_cont TYPE TABLE OF swr_cont.
+  DATA : lv_old_guid TYPE guid_32.
+  DATA :
+        lt_sww TYPE TABLE OF sww_wi2obj,
+        lx_sww TYPE sww_wi2obj.
+
+  lv_old_guid = old_data-guid .
+*   CLEAR lx_guidmap.
+*  SELECT SINGLE usrid FROM pa0105 INTO lx_guidmap-approver1 WHERE pernr = ls_leave_req-apprv(8) .
+*  SELECT SINGLE usrid FROM pa0105 INTO lx_guidmap-approver2 WHERE pernr = ls_leave_req-apprv2(8).
+*  lx_guidmap-guid = ls_guid-ld_guid.
+*  lx_guidmap-infty = lv_infty.
+*  lx_guidmap-pernr = ls_leave_req-pernr.
+*  lx_guidmap-itype = '17'.
+*  lx_guidmap-aenam = sy-uname.
+*  lx_guidmap-datum = sy-datum.
+*  lx_guidmap-uzeit = sy-uzeit.
+*  lx_guidmap-status_item = 'In Process'.
+  DATA : char TYPE char250.
+  if old_data-status_item  eq 'Approved'.
+
+  char = 'Modified Aft. Approve'.
+  CALL FUNCTION 'ZHR_LEAVERQ_CHANGE_STATUS'
+    EXPORTING
+      guid          = old_data-guid
+      status        = char
+*   IMPORTING
+*     SUBRC         =
+*     MESS          =
+            .
+  CLEAR char.
+
+SELECT SINGLE * FROM ztb_guidmap INTO lx_ztb_guidmap WHERE guid = old_data-guid.
+  if sy-subrc eq 0.
+    lx_ztb_guidmap-aenam = sy-uname.
+    lx_ztb_guidmap-datum = sy-datum.
+    lx_ztb_guidmap-uzeit = sy-uzeit.
+    lx_ztb_guidmap-guid = new_guid.
+lx_ztb_guidmap-status_item = 'In Process Aft. Approve'.
+INSERT ztb_guidmap FROM lx_ztb_guidmap.
+endif.
+
+  ELSEIF old_data-status_item(10) eq 'In Process'.
+
+  char = 'Modified'.
+  CALL FUNCTION 'ZHR_LEAVERQ_CHANGE_STATUS'
+    EXPORTING
+      guid          = old_data-guid
+      status        = char
+*   IMPORTING
+*     SUBRC         =
+*     MESS          =
+            .
+  CLEAR char.
+
+SELECT SINGLE * FROM ztb_guidmap INTO lx_ztb_guidmap WHERE guid = old_data-guid.
+  if sy-subrc eq 0.
+    lx_ztb_guidmap-aenam = sy-uname.
+    lx_ztb_guidmap-datum = sy-datum.
+    lx_ztb_guidmap-uzeit = sy-uzeit.
+    lx_ztb_guidmap-guid = new_guid.
+lx_ztb_guidmap-status_item = 'In Process'.
+INSERT ztb_guidmap FROM lx_ztb_guidmap.
+endif.
+
+  ENDIF.
+***************Data Infotype*******************************
+  CASE infty.
+    WHEN '2001'.
+      pa2001-version           = 'MODIFIED'.
+      pa2001-operation         = 'DISPLAY'.
+*      pa2001-begda  =  LEAVE_REQ-begda.
+*      pa2001-endda  =  LEAVE_REQ-endda.
+*      pa2001-awart  =  LEAVE_REQ-awart.
+*      pa2001-status_item         = 'MODIFIED'.
+      MODIFY ztb_p2001 FROM pa2001.
+
+
+      pa2001-guid              = NEW_GUID.
+*      ls_ztb-subty             = lx_ztb_guidmap-awart.
+*      ls_ztb-awart             = lx_ztb_guidmap-awart.
+      pa2001-version           = 'NEW'.
+      pa2001-operation         = 'CREATE'.
+*      ls_ztb-aenam             = sy-uname.
+*      ls_ztb-datum             = sy-datum.
+*      ls_ztb-uzeit             = sy-uzeit.
+*      ls_ztb-status_item       = lx_ztb_guidmap-status_item.
+*      ls_ztb-pernr             = lx_ztb_guidmap-pernr.
+*      ls_ztb-infty             = '2001'.
+*      ls_ztb-subty             = ls_leave_req-abstd.
+      pa2001-begda             = LEAVE_REQ-begda.
+      pa2001-endda             = LEAVE_REQ-endda.
+*      ls_ztb-zflnam            = ls_attachment-filename.
+*      ls_ztb-zfiletype         = ls_attachment-filetype.
+*      ls_ztb-zfladd            = 'ZFRTest'.
+      pa2001-beguz             = LEAVE_REQ-beguz.
+      pa2001-enduz             = LEAVE_REQ-enduz.
+*
+***************************************************************************
+*      ZWD_ESS031->
+*      me->get_quota(
+      pa2001-awart = LEAVE_REQ-awart.
+      pa2001-begda = LEAVE_REQ-begda.
+      pa2001-endda = LEAVE_REQ-endda.
+
+      CALL FUNCTION 'ZHR_LEAVERQ_GETQUOTA'
+        EXPORTING
+          lx_p2001 = pa2001
+        CHANGING
+          p_abwtg  = pa2001-abwtg
+          p_abrtg  = pa2001-abrtg.
+***************************************************************************
+      CALL FUNCTION 'DAYS_BETWEEN_TWO_DATES'
+        EXPORTING
+          i_datum_bis             = pa2001-begda
+          i_datum_von             = pa2001-endda
+*         I_KZ_EXCL_VON           = '0'
+*         I_KZ_INCL_BIS           = '0'
+*         I_KZ_ULT_BIS            = ' '
+*         I_KZ_ULT_VON            = ' '
+*         I_STGMETH               = '0'
+*         I_SZBMETH               = '1'
+        IMPORTING
+          e_tage                  = e_tage
+        EXCEPTIONS
+          days_method_not_defined = 1
+          OTHERS                  = 2.
+      IF e_tage LT 0.
+        e_tage = e_tage * -1.
+      ENDIF.
+      pa2001-abwtg = e_tage + 1.
+      pa2001-stdaz = pa2001-abwtg * 8.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+      IF OLD_DATA-STATUS_ITEM   = 'Approved'.
+          pa2001-STATUS_ITEM = 'In Process Aft. Approve'.
+      ELSE.
+         pa2001-status_item = 'In Process'.
+      ENDIF.
+*      pa2001-status_item = ''.
+      INSERT ztb_p2001 FROM pa2001.
+    WHEN '2002'.
+
+      pa2002-version           = 'MODIFIED'.
+      pa2002-operation         = 'DISPLAY'.
+*      pa2002-status_item         = 'MODIFIED'.
+
+      MODIFY ztb_p2002 FROM pa2002.
+                                    "PA2002
+      pa2002-guid              = NEW_GUID.
+*      ls_ztb-guid              = OLD_DATA-guid.
+*      ls_2002-subty              = ls_leave_req-awart.
+*      ls_2002-awart              = ls_leave_req-awart.
+      pa2002-version           = 'NEW'.
+      pa2002-operation         = 'CREATE'.
+*      ls_2002-aenam             = sy-uname.
+*      ls_2002-datum             = sy-datum.
+*      ls_2002-uzeit             = sy-uzeit.
+*      ls_2002-status_item       = lx_guidmap-status_item.
+*      ls_2002-pernr             = ls_leave_req-pernr.
+      pa2002-infty             = '2002'.
+**  ls_ztb-subty             = ls_leave_req-abstd.
+*      ls_2002-begda             = ls_leave_req-begda.
+*      ls_2002-endda             = ls_leave_req-endda.
+**  ls_ztb-zflnam            = ls_attachment-filename.
+**  ls_ztb-zfiletype         = ls_attachment-filetype.
+**  ls_ztb-zfladd            = 'ZFRTest'.
+*      ls_2002-beguz             = ls_leave_req-beguz.
+*      ls_2002-enduz             = ls_leave_req-enduz.
+
+**************************************************************************
+      CLEAR pa2001.
+      pa2001-pernr  = pa2002-pernr.
+      pa2001-awart  = pa2002-awart.
+      pa2001-begda  = pa2002-begda.
+      pa2001-endda  = pa2002-endda.
+
+*      me->get_quota(
+      CALL FUNCTION 'ZHR_LEAVERQ_GETQUOTA'
+        EXPORTING
+          lx_p2001 = pa2001
+        CHANGING
+          p_abwtg  = pa2002-abwtg
+          p_abrtg  = pa2002-abrtg.
+**************************************************************************
+      CALL FUNCTION 'DAYS_BETWEEN_TWO_DATES'
+        EXPORTING
+          i_datum_bis             = pa2002-begda
+          i_datum_von             = pa2002-endda
+*         I_KZ_EXCL_VON           = '0'
+*         I_KZ_INCL_BIS           = '0'
+*         I_KZ_ULT_BIS            = ' '
+*         I_KZ_ULT_VON            = ' '
+*         I_STGMETH               = '0'
+*         I_SZBMETH               = '1'
+        IMPORTING
+          e_tage                  = e_tage
+        EXCEPTIONS
+          days_method_not_defined = 1
+          OTHERS                  = 2.
+      IF e_tage LT 0.
+        e_tage = e_tage * -1.
+      ENDIF.
+      pa2002-abwtg = e_tage + 1.
+      pa2002-stdaz = pa2002-abwtg * 8.
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+      IF OLD_DATA-STATUS_ITEM   = 'Approved'.
+          pa2002-STATUS_ITEM = 'In Process Aft. Approve'.
+      ELSE.
+         pa2002-status_item = 'In Process'.
+      ENDIF.
+      INSERT ztb_p2002 FROM pa2002.
+    WHEN OTHERS.
+  ENDCASE.
+***********************************************************
+
+*****************************************************
+*note
+
+  DATA ls_guidnote TYPE ztb_guidnote.
+
+  IF NEW_NOTE IS NOT INITIAL.
+*DATA ls_guidnote TYPE ztb_guidnote.
+     DATA : lt_p0002 TYPE TABLE OF p0002,
+         lx_p0002 TYPE p0002,
+         ld_pernr TYPE pernr_d,
+         ld_begda TYPE dats,
+         ld_endda TYPE dats,
+         ld_usrid TYPE p0105-usrid.
+  ld_usrid = sy-uname.
+  CALL FUNCTION 'RP_GET_PERNR_FROM_USERID'
+    EXPORTING
+      begda     = sy-datum
+      endda     = sy-datum
+      usrid     = ld_usrid
+      usrty     = '0001'
+    IMPORTING
+      usr_pernr = ld_pernr
+    EXCEPTIONS
+      retcd     = 1
+      OTHERS    = 2.
+
+  ld_begda = '18000101'.
+  ld_endda = '99991231'.
+
+  CALL FUNCTION 'HR_READ_INFOTYPE'
+    EXPORTING
+      infty           = '0002'
+      pernr           = ld_pernr
+      begda           = sy-datum
+      endda           = sy-datum
+    TABLES
+      infty_tab       = lt_p0002
+    EXCEPTIONS
+      infty_not_found = 1.
+  SORT lt_p0002 DESCENDING BY begda.
+  READ TABLE lt_p0002 INTO lx_p0002 INDEX 1.
+  ls_guidnote-cnam = lx_p0002-cname.
+
+  ls_guidnote-guid = new_guid.
+  ls_guidnote-note = NEW_NOTE.
+  ls_guidnote-usnt = sy-uname.
+  ls_guidnote-udat = sy-datum.
+  ls_guidnote-uzet = sy-uzeit.
+*  ls_guidnote-cnam = wd_comp_controller->get_cname( ).
+  ls_guidnote-wiid = lx_sww-wi_id.
+  INSERT ztb_guidnote FROM ls_guidnote.
+  else.
+  SELECT SINGLE * FROM ztb_guidnote INTO ls_guidnote WHERE guid = lv_old_guid.
+  IF sy-subrc eq 0.
+  ls_guidnote-guid = new_guid.
+  INSERT ztb_guidnote FROM ls_guidnote.
+  COMMIT WORK AND WAIT.
+  ENDIF.
+  ENDIF.
+*****************************************************
+
+  objkey = new_guid.
+
+  "for Secretary
+  IF SECRETARY IS NOT INITIAL.
+  objkey+34(1) = 'X'.
+  ENDIF.
+
+  CALL FUNCTION 'SAP_WAPI_CREATE_EVENT' " IN BACKGROUND TASK AS SEPARATE UNIT
+    EXPORTING
+      object_type     = 'ZBORLVRQST'
+*     object_type     = 'ZPERINFO'
+      object_key      = objkey
+      event           = 'EV_EDIT'
+*      event           = 'Action'
+      commit_work     = 'X'
+      event_language  = sy-langu
+      language        = sy-langu
+      user            = sy-uname
+    TABLES
+      input_container = lt_cont
+      message_lines   = lt_msglines
+      message_struct  = lt_msgstruc.
+
+  COMMIT WORK AND WAIT .
+  WAIT UP TO 2 SECONDS.
+*  DATA :
+*        lt_sww TYPE TABLE OF sww_wi2obj,
+*        lx_sww TYPE sww_wi2obj.
+  SELECT * FROM sww_wi2obj INTO CORRESPONDING FIELDS OF TABLE lt_sww WHERE instid = objkey.
+
+  SORT lt_sww ASCENDING BY wi_id.
+  READ TABLE lt_sww INTO lx_sww INDEX 1.
+
+  CONCATENATE 'Leave Request Is Succesfully Submitted Under Document ' lx_sww-wi_id INTO mess SEPARATED BY space.
+*  CONCATENATE 'Leave Request Created Under Document ' lx_sww-wi_id INTO lv_mess SEPARATED BY SPACE.
+*  l_message_manager->report_message(
+*      EXPORTING
+*        message_text              =  lv_mess
+*        show_as_popup             = 'X'
+*        message_type              = '0'
+*    ).
+
+
+
+*****************************************************
+*attachment
+DATA : lx_att TYPE zthcm_erpskm_att.
+DATA : lx_att_old TYPE zthcm_erpskm_att.
+DATA : lv_filecontent TYPE Xstring.
+     SELECT SINGLE * FROM zthcm_erpskm_att
+       INTO lx_att
+       WHERE ZGUID = lv_old_guid
+       .
+     if sy-subrc eq 0.
+     lx_att_old = lx_att.
+     lx_att-zflnam_attch+9(4) = sy-datum ."sy-uzeit.
+     lx_att-zflnam_attch+13(4) = sy-uzeit.
+     lx_att-zguid = new_guid.
+     INSERT zthcm_erpskm_att FROM lx_att.
+     COMMIT WORK.
+
+*     TRY .
+     if lx_att-zfladd_attch ne lx_att_old-ZFLADD_ATTCH.
+     OPEN DATASET LX_ATT-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+     OPEN DATASET lx_att_old-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+     READ DATASET lx_att_old-ZFLADD_ATTCH INTO lv_filecontent.
+     TRANSFER lv_filecontent to LX_ATT-ZFLADD_ATTCH .
+     CLOSE DATASET lx_att_old-ZFLADD_ATTCH.
+     CLOSE DATASET LX_ATT-ZFLADD_ATTCH.
+     ELSE.
+*       OPEN DATASET LX_ATT-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+*     OPEN DATASET lx_att_old-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+*     READ DATASET lx_att_old-ZFLADD_ATTCH INTO lv_filecontent.
+*     TRANSFER lv_filecontent to LX_ATT-ZFLADD_ATTCH .
+*     CLOSE DATASET lx_att_old-ZFLADD_ATTCH.
+*     CLOSE DATASET LX_ATT-ZFLADD_ATTCH.
+     endif.
+
+*     CATCH  CX_SY_FILE_OPEN.
+*       CLOSE DATASET lx_att_old-ZFLADD_ATTCH.
+*       CLOSE DATASET LX_ATT-ZFLADD_ATTCH.
+*
+*       OPEN DATASET LX_ATT-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+*       OPEN DATASET lx_att_old-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+*       READ DATASET lx_att_old-ZFLADD_ATTCH INTO lv_filecontent.
+*       TRANSFER lv_filecontent to LX_ATT-ZFLADD_ATTCH .
+*       CLOSE DATASET lx_att_old-ZFLADD_ATTCH.
+*       CLOSE DATASET LX_ATT-ZFLADD_ATTCH.
+*
+*     ENDTRY.
+     ENDIF.
+
+  REFRESH lt_sww.
+ SELECT * FROM sww_wi2obj INTO CORRESPONDING FIELDS OF TABLE lt_sww WHERE instid = objkey.
+
+  SORT lt_sww ASCENDING BY wi_id.
+  READ TABLE lt_sww INTO lx_sww INDEX 1.
+
+*  CONCATENATE 'Leave Request Is Succesfully Submitted Under Document ' lx_sww-wi_id INTO mess SEPARATED BY space.
+
+     CONCATENATE 'Data Has been Recreated under document' lx_sww-wi_id INTO mess SEPARATED BY space.
+
+*****************************************************
+
+ENDFUNCTION.
