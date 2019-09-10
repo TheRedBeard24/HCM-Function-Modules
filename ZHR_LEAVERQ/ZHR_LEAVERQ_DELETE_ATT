@@ -1,0 +1,46 @@
+FUNCTION ZHR_LEAVERQ_DELETE_ATT.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID)  TYPE  GUID_32
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     REFERENCE(MESSAGE) TYPE  CHAR50
+*"----------------------------------------------------------------------
+DATA : lx_att TYPE zthcm_erpskm_att,
+       lx_ztb TYPE ztb_p2001.
+
+SELECT SINGLE * FROM zthcm_erpskm_att INTO lx_att WHERE ZGUID = guid.
+  IF sy-subrc eq 0.
+
+
+       OPEN DATASET LX_ATT-ZFLADD_ATTCH  IN BINARY MODE FOR OUTPUT.
+*       TRANSFER LX_ATT-ZFLADD_ATTCH to LX_ATT-ZFLADD_ATTCH .
+        DELETE DATASET LX_ATT-ZFLADD_ATTCH.
+       CLOSE DATASET LX_ATT-ZFLADD_ATTCH.
+
+
+    lx_att-ZFLTYP_ATTCH    =   ''  .
+    lx_att-ZFLNAM_ATTCH    =   ''  .
+    lx_att-ZFILETYPE_ATTCH =   ''  .
+    lx_att-ZFLADD_ATTCH    =   ''  .
+    lx_att-ZDATUM          =   ''  .
+    lx_att-ZUZEIT          =   ''  .
+    MODIFY zthcm_erpskm_att FROM lx_att.
+  ELSE.
+    SUBRC  = '4'.
+    MESSAGE ='Data Not Found'.
+    exit.
+
+  ENDIF.
+
+SELECT SINGLE * FROM ztb_p2001 INTO lx_ztb WHERE guid = guid.
+  IF sy-subrc eq 0.
+    CLEAR :
+           lx_ztb-ZFLNAM    ,
+           lx_ztb-ZFILETYPE ,
+           lx_ztb-ZFLADD    .
+    MODIFY  ztb_p2001 FROM lx_ztb.
+  ENDIF.
+
+ENDFUNCTION.
