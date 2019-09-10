@@ -1,0 +1,175 @@
+FUNCTION zhr_leaverq_maintaininfotype.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID) TYPE  GUID_32
+*"     REFERENCE(FUNC) TYPE  CHAR20 DEFAULT 'DEL'
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     REFERENCE(MESSAGE) TYPE  CHAR250
+*"----------------------------------------------------------------------
+
+  CALL FUNCTION 'BUFFER_REFRESH_ALL'.
+  CALL FUNCTION 'RH_CLEAR_BUFFER'.
+  ROLLBACK WORK.
+
+  DATA : function  TYPE actio.
+  DATA : ls_ztb TYPE ztb_guidmap.
+  DATA : ls_p2001 TYPE ztb_p2001.
+  DATA : lt_p2001 TYPE TABLE OF p2001.
+  DATA : ltx_p2001 TYPE p2001.
+  DATA : lt_p2002 TYPE TABLE OF p2002.
+  DATA : ltx_p2002 TYPE p2002.
+  DATA : ls_p2002 TYPE ztb_p2002.
+  DATA : return2 TYPE bapireturn1.
+
+  function = func.
+
+  SELECT SINGLE * FROM ztb_guidmap INTO ls_ztb WHERE guid = guid.
+  CHECK ls_ztb IS NOT INITIAL.
+
+  CALL FUNCTION 'HR_EMPLOYEE_ENQUEUE'
+    EXPORTING
+      number       = ls_ztb-pernr
+    IMPORTING
+      return       = return2
+*     LOCKING_USER =
+    .
+  CHECK return2-type IS INITIAL OR return2-type EQ 'S'.
+
+  CASE  ls_ztb-infty.
+    WHEN '2001'.
+      SELECT SINGLE * FROM ztb_p2001 INTO ls_p2001 WHERE guid = guid.
+      IF sy-subrc EQ 0.
+
+        CALL FUNCTION 'HR_READ_INFOTYPE' IN BACKGROUND TASK AS SEPARATE UNIT
+          EXPORTING
+*                 TCLAS                 = 'A'
+            pernr                 = ls_ztb-pernr
+            infty                 = '2001'
+            begda                 = '18000101'
+            endda                 = '99991231'
+           bypass_buffer         = 'X'
+*                 LEGACY_MODE           = ' '
+*               IMPORTING
+*                 SUBRC                 =
+          TABLES
+            infty_tab             = lt_p2001
+*               EXCEPTIONS
+*                 INFTY_NOT_FOUND       = 1
+*                 OTHERS                = 2
+                  .
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+          subrc = '4'.
+        ENDIF.
+
+        READ TABLE lt_p2001 INTO ltx_p2001 WITH KEY subty = ls_p2001-awart begda = ls_p2001-begda endda = ls_p2001-endda.
+
+
+        CALL FUNCTION 'HR_INFOTYPE_OPERATION'  IN BACKGROUND TASK AS SEPARATE UNIT
+          EXPORTING
+            infty            = '2001'
+            number           = ltx_p2001-pernr
+            subtype          = ltx_p2001-subty
+*           OBJECTID         =
+*           LOCKINDICATOR    =
+            validityend      = ltx_p2001-endda
+            validitybegin    = ltx_p2001-begda
+            recordnumber     = ltx_p2001-seqnr
+            record           = ltx_p2001
+            operation        = function
+            tclas            = 'A'
+            dialog_mode      = '0'
+*           NOCOMMIT         =
+*           VIEW_IDENTIFIER  =
+*           SECONDARY_RECORD =
+          IMPORTING
+            return           = return2
+*           KEY              =
+          .
+        IF return2-type NE 'S' AND return2-type IS NOT INITIAL.
+
+          CALL FUNCTION 'BUFFER_REFRESH_ALL'.
+          CALL FUNCTION 'RH_CLEAR_BUFFER'.
+          ROLLBACK WORK.
+          message = return2-message.
+          subrc = '4'.
+        ELSE.
+
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'.
+          COMMIT WORK AND WAIT.
+        ENDIF.
+      ENDIF.
+    WHEN '2002'.
+      SELECT SINGLE * FROM ztb_p2002 INTO ls_p2002 WHERE guid = guid.
+      IF sy-subrc EQ 0.
+
+        CALL FUNCTION 'HR_READ_INFOTYPE' IN BACKGROUND TASK AS SEPARATE UNIT
+            EXPORTING
+*                 TCLAS                 = 'A'
+              pernr                 = ls_ztb-pernr
+              infty                 = '2002'
+              begda                 = '18000101'
+              endda                 = '99991231'
+             bypass_buffer         = 'X'
+*                 LEGACY_MODE           = ' '
+*               IMPORTING
+*                 SUBRC                 =
+            TABLES
+              infty_tab             = lt_p2002
+*               EXCEPTIONS
+*                 INFTY_NOT_FOUND       = 1
+*                 OTHERS                = 2
+                    .
+        IF sy-subrc <> 0.
+* Implement suitable error handling here
+          subrc = '4'.
+        ENDIF.
+        READ TABLE lt_p2002 INTO ltx_p2002 WITH KEY subty = ls_p2002-awart begda = ls_p2002-begda endda = ls_p2002-endda.
+
+        CALL FUNCTION 'HR_INFOTYPE_OPERATION' IN BACKGROUND TASK AS SEPARATE UNIT
+          EXPORTING
+            infty            = '2002'
+            number           = ls_ztb-pernr
+            subtype          = ltx_p2001-subty
+*           OBJECTID         =
+*           LOCKINDICATOR    =
+            validityend      = ltx_p2001-endda
+            validitybegin    = ltx_p2001-begda
+            recordnumber     = ltx_p2001-seqnr
+            record           = ltx_p2002
+            operation        = function
+            tclas            = 'A'
+            dialog_mode      = '0'
+*           NOCOMMIT         =
+*           VIEW_IDENTIFIER  =
+*           SECONDARY_RECORD =
+          IMPORTING
+            return           = return2
+*           KEY              =
+          .
+        IF return2-type NE 'S' AND return2-type IS NOT INITIAL.
+
+          CALL FUNCTION 'BUFFER_REFRESH_ALL'.
+          CALL FUNCTION 'RH_CLEAR_BUFFER'.
+          ROLLBACK WORK.
+          message = return2-message.
+          subrc = '4'.
+        ELSE.
+
+          CALL FUNCTION 'BAPI_TRANSACTION_COMMIT'.
+          COMMIT WORK AND WAIT.
+        ENDIF.
+      ENDIF.
+    WHEN OTHERS.
+  ENDCASE.
+
+  CALL FUNCTION 'HR_EMPLOYEE_DEQUEUE'
+    EXPORTING
+      number        = ls_ztb-pernr
+*       IMPORTING
+*         RETURN        =
+            .
+
+ENDFUNCTION.
