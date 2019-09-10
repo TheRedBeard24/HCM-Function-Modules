@@ -1,0 +1,37 @@
+FUNCTION zhr_leaverq_maintainworkitem.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(OLD_GUID) TYPE  GUID_32
+*"     VALUE(NEW_IMPORT_GUID) TYPE  GUID_32 OPTIONAL
+*"  EXPORTING
+*"     REFERENCE(NEW_GUID) TYPE  GUID_32
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     REFERENCE(MESS) TYPE  CHAR255
+*"------ ----------------------------------------------------------------
+
+  DATA: v_guid TYPE guid_32.
+  DATA: x_guidmap_edt  TYPE ztb_guidmap_edt.
+*DATA: t_guid_edt  TYPE TABLE OF ztb_guid_edt.
+  if new_import_guid IS INITIAL.
+  CALL FUNCTION 'GUID_CREATE'
+    IMPORTING
+      ev_guid_32 = v_guid.
+
+  ELSE.
+*    lv_ld_guid
+    v_guid = new_import_guid .
+  ENDIF.
+  x_guidmap_edt-old_guid = OLD_GUID.
+  x_guidmap_edt-new_guid = v_guid.
+  INSERT ztb_guidmap_edt FROM x_guidmap_edt.
+  commit WORK.
+  IF sy-subrc ne 0.
+    subrc =  '4'.
+    mess = 'Maintaining Data Failed.'.
+  ELSE.
+    NEW_GUID = v_guid.
+    subrc =  '0'.
+    mess = 'Maintaining Data Success.'.
+  ENDIF.
+ENDFUNCTION.
