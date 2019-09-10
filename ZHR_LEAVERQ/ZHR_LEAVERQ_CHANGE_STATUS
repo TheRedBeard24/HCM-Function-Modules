@@ -1,0 +1,41 @@
+FUNCTION ZHR_LEAVERQ_CHANGE_STATUS.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID) TYPE  GUID_32
+*"     REFERENCE(STATUS) TYPE  CHAR250
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     REFERENCE(MESS) TYPE  CHAR250
+*"----------------------------------------------------------------------
+
+DATA : lx_ztb TYPE ztb_guidmap,
+       lx_p2001 TYPE ztb_p2001,
+       lx_p2002 TYPE ztb_p2002.
+
+SELECT SINGLE * FROM ztb_guidmap into lx_ztb WHERE guid = guid.
+  CHECK lx_ztb IS NOT INITIAL.
+  CASE lx_ztb-infty.
+    WHEN '2001'.
+      SELECT SINGLE * FROM ztb_p2001 INTO lx_p2001 WHERE guid = guid.
+    WHEN '2002'.
+      SELECT SINGLE * FROM ztb_p2002 INTO lx_p2002 WHERE guid = guid.
+    WHEN OTHERS.
+  ENDCASE.
+
+IF lx_ztb IS NOT INITIAL AND ( lx_p2001 IS NOT INITIAL or lx_p2002 IS NOT INITIAL ) .
+  lx_ztb-status_item =  STATUS.
+  MODIFY ztb_guidmap FROM lx_ztb .
+  CASE lx_ztb-infty.
+    WHEN '2001'.
+      lx_p2001-status_item = status.
+      MODIFY ztb_p2001 FROM lx_p2001 ." WHERE guid = GUID .
+    WHEN '2002'.
+      lx_p2001-status_item = status.
+      MODIFY ztb_p2002 FROM lx_p2002 ."WHERE guid = GUID . .
+    WHEN OTHERS.
+  ENDCASE.
+ENDIF.
+
+
+ENDFUNCTION.
