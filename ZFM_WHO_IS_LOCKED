@@ -1,0 +1,53 @@
+FUNCTION zfm_who_is_locked.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"  EXPORTING
+*"     VALUE(UNAME) TYPE  UNAME
+*"     VALUE(RETURN) TYPE  BAPIRET1
+*"----------------------------------------------------------------------
+  DATA: lt_enq  TYPE STANDARD TABLE OF seqg7,
+        lx_enq  TYPE seqg7,
+        ld_no   TYPE sy-tabix,
+        ld_sbrc TYPE sy-subrc,
+        ld_garg TYPE seqg3-garg,
+        lt_return  TYPE TABLE OF bapiret2,
+        lx_address TYPE bapiaddr3.
+
+  CONCATENATE sy-mandt pernr '*' INTO ld_garg.
+  CALL FUNCTION 'ENQUE_READ2'
+    EXPORTING
+      gclient = sy-mandt
+      gname   = 'PREL'
+      garg    = ' '
+      guname  = ' '
+      opcode2 = '1'
+    IMPORTING
+      number  = ld_no
+      subrc   = ld_sbrc
+    TABLES
+      enq     = lt_enq.
+
+  CLEAR lx_enq.
+  LOOP AT lt_enq INTO lx_enq WHERE garg CP ld_garg.
+    EXIT.
+  ENDLOOP.
+
+  uname = lx_enq-guname.
+
+  CHECK uname IS NOT INITIAL.
+  CALL FUNCTION 'BAPI_USER_GET_DETAIL'
+    EXPORTING
+      username = uname
+    IMPORTING
+      address  = lx_address
+    TABLES
+      return   = lt_return.
+
+  return-type       = 'E'.
+  return-id         = 'PBAS_SERVICE'.
+  return-number     = '001'.
+  return-message_v3 = uname.
+  return-message_v4 = lx_address-fullname.
+ENDFUNCTION.
