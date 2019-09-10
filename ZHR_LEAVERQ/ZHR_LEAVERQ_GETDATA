@@ -1,0 +1,160 @@
+FUNCTION ZHR_LEAVERQ_GETDATA.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID) TYPE  GUID_32
+*"  EXPORTING
+*"     REFERENCE(DATA_LEAVE) TYPE  ZST_HCM_LEAVE_RE
+*"----------------------------------------------------------------------
+DATA:
+      lx_new TYPE ztb_guidmap,
+      lx_map TYPE ztb_guidmap_edt,
+      lx_p2001N TYPE ztb_p2001,
+      lx_p2002N TYPE ztb_p2002.
+DATA : lx_t554t TYPE t554t.
+DATA : lt_swwobj TYPE TABLE OF sww_wi2obj,
+       lx_swwobj TYPE sww_wi2obj.
+DATA :
+        pval1 TYPE c LENGTH 5,
+        pval2 TYPE c LENGTH 30,
+        pval3 TYPE c LENGTH 5.
+DATA : lx_p0001 TYPE pa0001.
+DATA :lx_note TYPE ztb_guidnote.
+
+DATA :
+       LT_pa2006 TYPE TABLE OF pa2006,
+       LT_pa2006dum TYPE TABLE OF pa2006,
+       lx_pa2006  TYPE pa2006.
+
+SELECT SINGLE * FROM ztb_guidmap INTO lx_new WHERE guid = GUID.
+  CHECK lx_new IS NOT  INITIAL.
+  SELECT SINGLE * FROM ztb_p2001 INTO lx_p2001N WHERE guid = GUID.
+  SELECT SINGLE * FROM ztb_p2001 INTO lx_p2001N WHERE guid = GUID.
+
+CHECK lx_p2001n IS NOT INITIAL or lx_p2002n IS NOT INITIAL.
+
+DATA_leave-PERNR          = lx_new-pernr.
+
+
+SELECT * FROM sww_wi2obj INTO CORRESPONDING FIELDS OF TABLE lt_swwobj WHERE INSTID = GUID.
+
+SORT lt_swwobj ASCENDING by wi_id.
+      READ TABLE lt_swwobj INTO lx_swwobj INDEX 1.
+      DATA_leave-GUID_DOC = lx_swwobj-wi_id  .
+
+DATA_leave-GUID           = GUID.
+
+CASE lx_new-infty.
+  WHEN '2001'.
+DATA_leave-AWART          = lx_p2001N-AWART.
+DATA_leave-BEGDA          = lx_p2001N-BEGDA.
+DATA_leave-ENDDA          = lx_p2001N-ENDDA.
+DATA_leave-BEGUZ          = lx_p2001N-BEGUZ.
+DATA_leave-ENDUZ          = lx_p2001N-ENDUZ.
+DATA_leave-STATUS         = lx_p2001N-status_item.
+DATA_leave-ABSTD          = lx_p2001N-stdaz.
+DATA_leave-ABWTG          = lx_p2001N-ABWTG.
+  WHEN '2002'.
+DATA_leave-AWART          = lx_p2002N-AWART.
+DATA_leave-BEGDA          = lx_p2002N-BEGDA.
+DATA_leave-ENDDA          = lx_p2002N-ENDDA.
+DATA_leave-BEGUZ          = lx_p2002N-BEGUZ.
+DATA_leave-ENDUZ          = lx_p2002N-ENDUZ.
+DATA_leave-STATUS         = lx_p2002N-status_item.
+DATA_leave-ABSTD          = lx_p2002N-stdaz.
+DATA_leave-ABWTG          = lx_p2002N-ABWTG.
+  WHEN OTHERS.
+ENDCASE.
+
+SELECT SINGLE * FROM t554t INTO CORRESPONDING FIELDS OF  lx_t554t
+*          FOR ALL ENTRIES IN lt_t554t_w
+        WHERE sprsl EQ 'En' AND moabw EQ '90'
+          and awart = DATA_leave-AWART.
+
+DATA_leave-TEXTAWART      = DATA_leave-ATEXT = lx_t554t-atext.
+
+CONCATENATE DATA_leave-AWART '-' DATA_leave-TEXTAWART INTO DATA_leave-TEXTAWART.
+SELECT SINGLE * FROM ztb_guidnote INTO lx_note WHERE guid = guid.
+IF sy-subrc eq 0.
+DATA_leave-NOTE           = lx_note-note.
+ENDIF.
+
+CLEAR : lx_p0001.
+SELECT SINGLE ename FROM pa0001 INTO CORRESPONDING FIELDS OF  lx_p0001 WHERE pernr = lx_new-pernr AND endda = '99991231'.
+IF sy-subrc eq 0.
+DATA_leave-ENAME          = lx_p0001-ename.
+ENDIF.
+
+DATA_leave-APPRV2         = lx_new-approver2.
+DATA_leave-APPRV          = lx_new-approver1.
+
+CALL FUNCTION 'CONVERSION_EXIT_LDATE_OUTPUT'
+  EXPORTING
+    input  = DATA_leave-BEGDA
+  IMPORTING
+    output = DATA_leave-BEGDA_txt.
+
+
+SPLIT DATA_leave-BEGDA_txt AT '.' INTO pval1 pval2 pval3.
+CONDENSE : pval1 ,pval2 ,pval3.
+CONCATENATE pval1 pval2 pval3 INTO DATA_leave-BEGDA_txt SEPARATED BY space.
+
+CLEAR : pval1 ,pval2 ,pval3.
+CALL FUNCTION 'CONVERSION_EXIT_LDATE_OUTPUT'
+  EXPORTING
+    input  = DATA_leave-ENDDA
+  IMPORTING
+    output = DATA_leave-ENDDA_txt.
+
+SPLIT DATA_leave-ENDDA_txt AT '.' INTO pval1 pval2 pval3.
+CONDENSE : pval1 ,pval2 ,pval3.
+CONCATENATE pval1 pval2 pval3 INTO DATA_leave-ENDDA_txt SEPARATED BY space.
+DATA : char TYPE c LENGTH 250.
+
+MOVE data_leave-abstd to char .
+REPLACE ALL OCCURRENCES OF '.00' in char WITH space.
+CONDENSE char.
+data_leave-abstd_txt = char.
+
+MOVE data_leave-abwtg to char .
+REPLACE ALL OCCURRENCES OF '.00' in char WITH space.
+CONDENSE char.
+data_leave-abwtg_txt = char.
+CLEAR char.
+
+SELECT * FROM pa2006 INTO CORRESPONDING FIELDS OF TABLE lt_pa2006 WHERE pernr = DATA_leave-PERNR.
+LT_pa2006dum[] = LT_pa2006[].
+LOOP AT lt_pa2006 INTO lx_pa2006 ."WHERE endda eq '99993112'.
+  IF lx_pa2006-deend GT sy-datum.
+*    DATA_leave-anzhl = lx_pa2006-anzhl.
+
+*******************************
+*    SELECT SINGLE * FROM ztb_p2001 INTO lx_ztb WHERE guid = object-key-guid.
+*SELECT * FROM pa2006 INTO CORRESPONDING FIELDS OF TABLE lt_pa2006 WHERE pernr = lx_ztb-pernr.
+*LOOP AT lt_pa2006 INTO lx_pa2006.
+*  IF lx_pa2006-deend GT sy-datum.
+*    object-anzhl = lx_pa2006-anzhl - lx_pa2006-KVERB.
+    DATA_leave-anzhl = lx_pa2006-anzhl - lx_pa2006-KVERB.
+*    EXIT.
+*  ENDIF.
+*ENDLOOP.
+*******************************
+
+    EXIT.
+  ENDIF.
+ENDLOOP.
+
+MOVE DATA_leave-anzhl to char .
+REPLACE ALL OCCURRENCES OF '.00' in char WITH space.
+CONDENSE char.
+data_leave-anzhl_txt = char.
+CLEAR char.
+
+DATA_leave-useanzhl = DATA_leave-anzhl - data_leave-abwtg.
+MOVE DATA_leave-useanzhl to char .
+REPLACE ALL OCCURRENCES OF '.00' in char WITH space.
+CONDENSE char.
+data_leave-useanzhl_txt = char.
+CLEAR char.
+
+ENDFUNCTION.
