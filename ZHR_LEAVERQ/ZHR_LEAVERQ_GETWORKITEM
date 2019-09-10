@@ -1,0 +1,22 @@
+FUNCTION zhr_leaverq_getworkitem.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID) TYPE  GUID_32
+*"  EXPORTING
+*"     REFERENCE(WI_ID) TYPE  SWW_WIID
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"----------------------------------------------------------------------
+  DATA : lt_swwobj TYPE TABLE OF sww_wi2obj.
+  DATA : lx_swwobj TYPE sww_wi2obj.
+
+  SELECT   * FROM sww_wi2obj INTO CORRESPONDING FIELDS OF TABLE lt_swwobj WHERE instid = guid.
+  SORT lt_swwobj DESCENDING BY wi_id.
+  READ TABLE lt_swwobj INTO lx_swwobj INDEX 1.
+  IF sy-subrc EQ 0.
+    wi_id = lx_swwobj-wi_id + 1.
+  ELSE.
+    subrc = '4'.
+  ENDIF.
+
+ENDFUNCTION.
