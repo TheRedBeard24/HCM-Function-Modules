@@ -1,0 +1,43 @@
+FUNCTION ZHR_LEAVERQ_APPROVE_WORKITEM.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(DECIKEY) TYPE  SWR_DECIKEY
+*"     REFERENCE(DECISION_NOTE) TYPE  SWRSOBJID
+*"     REFERENCE(WORKITEM_ID) TYPE  SWW_WIID
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"----------------------------------------------------------------------
+DATA : "WORKITEM_ID    TYPE SWR_STRUCT-WORKITEMID,
+       "DECISION_NOTE  TYPE SWRSOBJID ,
+       MESSAGE_LINES  type table of SWR_MESSAG,
+       xMESSAGE_LINES  type   SWR_MESSAG,
+       MESSAGE_STRUCT type table of SWR_MSTRUC.
+
+DATA: SWR_DECIKEY TYPE SWR_DECIKEY.
+
+      CALL FUNCTION 'SAP_WAPI_DECISION_COMPLETE'
+        EXPORTING
+          workitem_id         = WORKITEM_ID
+         LANGUAGE             = SY-LANGU
+         USER                 = SY-UNAME
+         decision_key         = SWR_DECIKEY
+         DO_COMMIT            = 'X'
+         DECISION_NOTE        = DECISION_NOTE
+*       IMPORTING
+*         RETURN_CODE          =
+*         NEW_STATUS           =
+       TABLES
+         MESSAGE_LINES        = MESSAGE_LINES
+         MESSAGE_STRUCT       = MESSAGE_STRUCT
+                .
+      commit WORK.
+      WAIT UP TO 2 SECONDS.
+
+      READ TABLE MESSAGE_LINES INTO xMESSAGE_LINES INDEX 1.
+      IF xMESSAGE_LINES-msg_type ne 'S'.
+        subrc = '4'.
+      ENDIF.
+
+
+ENDFUNCTION.
