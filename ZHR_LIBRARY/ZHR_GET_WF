@@ -1,0 +1,45 @@
+FUNCTION ZHR_GET_WF.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(TOP_LEVEL_WF) TYPE  SWW_WIID
+*"  EXPORTING
+*"     REFERENCE(WI_ID) TYPE  SWW_WIID
+*"----------------------------------------------------------------------
+
+DATA :
+        "TOP_LEVEL_WF TYPE  SWWWIHEAD-WI_ID,
+        WF_LOG type table of SWP_LOGTAB,
+        xF_LOG type   SWP_LOGTAB.
+CALL FUNCTION 'SWP_WORKFLOW_LOG_READ'
+  EXPORTING
+    top_level_wf                  = TOP_LEVEL_WF
+*   WF_ID                         =
+*   LANGUAGE                      = SY-LANGU
+*   NESTING_LEVEL                 = '1'
+*   WITH_NODES                    = 'X'
+*   WITH_MESSAGES                 = 'X'
+*   EXPAND_SUBFLOWS               = ' '
+*   ARCHIVE_MODE                  = ' '
+*   ARCHIVE_DATA                  =
+*   WITH_BLOCKENDS                =
+* IMPORTING
+*   FLOWITEM                      =
+  tables
+    wf_log                        = WF_LOG
+ EXCEPTIONS
+   WORKFLOW_DOES_NOT_EXIST       = 1
+   OTHERS                        = 2
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ELSE.
+    READ TABLE wf_log INTO xf_log WITH KEY wi_rh_task = 'TS00008267'.
+    IF sy-subrc eq 0.
+       WI_ID = xf_log-WI_ID.
+    ENDIF.
+ENDIF.
+
+
+
+ENDFUNCTION.
