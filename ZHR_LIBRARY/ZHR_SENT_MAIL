@@ -1,0 +1,185 @@
+FUNCTION ZHR_SENT_MAIL.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(TOSENT) TYPE  COMM_ID_LONG
+*"     REFERENCE(OBJ_NAME) TYPE  SO_OBJ_NAM
+*"     REFERENCE(OBJ_DESCR) TYPE  SO_OBJ_DES
+*"  EXPORTING
+*"     REFERENCE(STATUS) TYPE  CHAR1
+*"     REFERENCE(MESSAGE) TYPE  CHAR255
+*"  TABLES
+*"      CONTENT STRUCTURE  SOLISTI1
+*"----------------------------------------------------------------------
+
+DATA:
+     document_data  LIKE  sodocchgi1                ,
+     document_type  LIKE  soodk-objtp VALUE 'HTM'   ,
+     put_in_outbox  LIKE  sonv-flag                 ,
+     commit_work    LIKE  sonv-flag  ,"VALUE 'X'                ,
+     ip_encrypt     TYPE  bcsd_encr                 ,
+     ip_sign        TYPE  bcsd_sign                 ,
+     sent_to_all    TYPE  sonv-flag                 ,
+     new_object_id  TYPE  sofolenti1-object_id      ,
+     object_header  TYPE TABLE OF  solisti1         ,
+     object_content TYPE TABLE OF  solisti1         ,
+     xobject_content TYPE    solisti1         ,
+     contents_hex   TYPE TABLE OF  solix            ,
+     object_para    TYPE TABLE OF  soparai1         ,
+     object_parb    TYPE TABLE OF  soparbi1         ,
+     xreceivers      TYPE    somlreci1 ,
+     receivers      TYPE TABLE OF  somlreci1 ,
+              lt_sww TYPE TABLE OF sww_wi2obj,
+         lx_sww TYPE sww_wi2obj.
+
+DATA : sender TYPE soextreci1-receiver.
+DATA : senderty TYPE soextreci1-adr_typ VALUE 'SMTP'.
+
+DATA : t_objhead  TYPE STANDARD TABLE OF solisti1.
+
+document_data-obj_name           =  OBJ_NAME  .
+document_data-obj_descr          =  OBJ_DESCR  .
+*document_data-obj_descr          =  'Permohonan Pengajuan Izin'  .
+document_data-obj_langu          =   sy-langu   .
+
+xobject_content-line = 'Send Mail'.
+DATA : usrid1 TYPE c LENGTH 241.
+
+  usrid1 = TOSENT.
+object_content[] = CONTENT[].
+MOVE  usrid1 TO xreceivers.
+xreceivers-rec_type = 'U'.
+xreceivers-com_type = 'INT'.
+APPEND xreceivers TO receivers.
+
+
+
+*"----------------------------------------------------------------------
+*"*"Lokale Schnittstelle:
+*"  IMPORTING
+*"     VALUE(DOCUMENT_DATA)     LIKE  SODOCCHGI1 STRUCTURE  SODOCCHGI1
+*"     VALUE(DOCUMENT_TYPE)     LIKE  SOODK-OBJTP DEFAULT 'RAW'
+*"     VALUE(PUT_IN_OUTBOX)     LIKE  SONV-FLAG DEFAULT SPACE
+*"     VALUE(COMMIT_WORK)       LIKE  SONV-FLAG DEFAULT SPACE
+*"     VALUE(IP_ENCRYPT)        TYPE  BCSD_ENCR OPTIONAL
+*"     VALUE(IP_SIGN)           TYPE  BCSD_SIGN OPTIONAL
+*"  EXPORTING
+*"     VALUE(SENT_TO_ALL)       LIKE  SONV-FLAG
+*"     VALUE(NEW_OBJECT_ID)     LIKE  SOFOLENTI1-OBJECT_ID
+*"  TABLES
+*"      OBJECT_HEADER           STRUCTURE  SOLISTI1 OPTIONAL
+*"      OBJECT_CONTENT          STRUCTURE  SOLISTI1 OPTIONAL
+*"      CONTENTS_HEX            STRUCTURE  SOLIX OPTIONAL
+*"      OBJECT_PARA             STRUCTURE  SOPARAI1 OPTIONAL
+*"      OBJECT_PARB             STRUCTURE  SOPARBI1 OPTIONAL
+*"      RECEIVERS               STRUCTURE  SOMLRECI1
+*"  EXCEPTIONS
+*"      TOO_MANY_RECEIVERS
+*"      DOCUMENT_NOT_SENT
+*"      DOCUMENT_TYPE_NOT_EXIST
+*"      OPERATION_NO_AUTHORIZATION
+*"      PARAMETER_ERROR
+*"      X_ERROR
+*"      ENQUEUE_ERROR
+*"----------------------------------------------------------------------
+
+
+*Training Administrator
+DATA : PACKING_LIST TYPE TABLE OF SOPCKLSTI1.
+DATA : xPACKING_LIST TYPE   SOPCKLSTI1.
+CONSTANTS: lc_0 VALUE '0',
+           lc_1 VALUE '1',
+           lc_raw(3) TYPE c VALUE 'RAW'.
+  DATA:  l_l1 TYPE i.
+  DESCRIBE TABLE object_content LINES l_l1.
+  xPACKING_LIST-head_start  = lc_1.
+  xPACKING_LIST-head_num    = lc_0.
+  xPACKING_LIST-body_start  = lc_1.
+  xPACKING_LIST-body_num    = l_l1.
+  xPACKING_LIST-doc_type    = 'HTML'."lc_raw'.
+  APPEND xPACKING_LIST TO PACKING_LIST.
+
+DATA debug TYPE c.
+*while debug IS INITIAL.
+*ENDWHILE.
+
+CALL FUNCTION 'SO_DOCUMENT_SEND_API1'  IN BACKGROUND TASK AS SEPARATE UNIT
+  EXPORTING
+    document_data                    = document_data
+*    PUT_IN_OUTBOX                    = 'X'
+    SENDER_ADDRESS                   = 'SYSBATCH' "'Training Administrator'
+   SENDER_ADDRESS_TYPE               = 'B'
+   COMMIT_WORK                       = 'X'
+*   IP_ENCRYPT                       =
+*   IP_SIGN                          =
+*   IV_VSI_PROFILE                   =
+* IMPORTING
+*   SENT_TO_ALL                      =
+*   NEW_OBJECT_ID                    =
+*   SENDER_ID                        =
+  tables
+    packing_list                     = PACKING_LIST
+   OBJECT_HEADER                     = t_objhead
+*   CONTENTS_BIN                     =
+   CONTENTS_TXT                      = object_content
+*   CONTENTS_HEX                     =
+*   OBJECT_PARA                      =
+*   OBJECT_PARB                      =
+    receivers                        = receivers
+*   ET_VSI_ERROR                     =
+  EXCEPTIONS
+    TOO_MANY_RECEIVERS               = 1
+    DOCUMENT_NOT_SENT                = 2
+    DOCUMENT_TYPE_NOT_EXIST          = 3
+    OPERATION_NO_AUTHORIZATION       = 4
+    PARAMETER_ERROR                  = 5
+    X_ERROR                          = 6
+    ENQUEUE_ERROR                    = 7
+    OTHERS                           = 8
+          .
+*IF sy-subrc <> 0.
+** Implement suitable error handling here
+*ENDIF.
+
+
+
+*CALL FUNCTION 'SO_NEW_DOCUMENT_SEND_API1' IN BACKGROUND TASK AS SEPARATE UNIT
+*  EXPORTING
+*    sender_address_type        = senderty
+*    sender_address             = sender
+*    document_data              = document_data
+*    document_type              = document_type
+*    put_in_outbox              = put_in_outbox
+*    commit_work                = commit_work
+*    ip_encrypt                 = ip_encrypt
+*    ip_sign                    = ip_sign
+*  IMPORTING
+*    sent_to_all                = sent_to_all
+*    new_object_id              = new_object_id
+*  TABLES
+**   OBJECT_HEADER              = OBJECT_HEADER
+*    object_content             = object_content
+**   CONTENTS_HEX               = CONTENTS_HEX
+**   OBJECT_PARA                = OBJECT_PARA
+**   OBJECT_PARB                = OBJECT_PARB
+*    receivers                  = receivers
+*  EXCEPTIONS
+*    too_many_receivers         = 1
+*    document_not_sent          = 2
+*    document_type_not_exist    = 3
+*    operation_no_authorization = 4
+*    parameter_error            = 5
+*    x_error                    = 6
+*    enqueue_error              = 7
+*    OTHERS                     = 8.
+
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+  STATUS  = sy-subrc.
+  MESSAGE = 'Failed to sent email'.
+
+ENDIF.
+
+
+
+ENDFUNCTION.
