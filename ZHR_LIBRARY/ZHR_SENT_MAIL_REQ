@@ -1,0 +1,224 @@
+FUNCTION ZHR_SENT_MAIL_REQ.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(NAME) TYPE  EMNAM
+*"     REFERENCE(GUID) TYPE  GUID_32 OPTIONAL
+*"  TABLES
+*"      CONTENT STRUCTURE  SOLISTI1
+*"----------------------------------------------------------------------
+DATA : xcontent TYPE SO_TEXT255.
+
+  DATA char TYPE c LENGTH 255.
+define mail.
+CONCATENATE &1 space INTO char.
+append char to content.
+end-OF-DEFINITION.
+
+DATA :
+      lt_9004 TYPE TABLE OF ztb_Guidmap_9004,
+      lx_9004 TYPE ztb_Guidmap_9004.
+
+DATA : zurl TYPE char30 VALUE 'http://portalsdm.bpmigas.com/'.
+DATA : zmail TYPE c LENGTH 255." VALUE 'http://portalsdm.bpmigas.com/'.
+IF sy-SYSID eq 'BED'.
+zurl = 'http://portaldev.bpmigas.com/'.
+ENDIF.
+
+*CONCATENATE '<td><a href="' zurl '"><p><strong>' zurl '</strong></p></a></td>' INTO zmail.
+*mail zmail.
+
+
+SELECT * FROM  ztb_guidmap_9004 INTO CORRESPONDING FIELDS OF TABLE lt_9004
+  WHERE guid = guid.
+  sort   lt_9004 DESCENDING by STATUS_ITEM.
+  READ TABLE lt_9004 INTO lx_9004 INDEX 1.
+
+  DATA : p0001   TYPE TABLE OF p0001.
+  DATA : x0001   TYPE p0001.
+  DATA : pernr   TYPE PLOG-OBJID.
+  DATA : nama    TYPE char40.
+  DATA : jabatan TYPE char40.
+  DATA : divisi  TYPE char40.
+  pernr = lx_9004-pernr.
+CALL FUNCTION 'RH_READ_INFTY'
+ EXPORTING
+*   AUTHORITY                  = 'DISP'
+*   WITH_STRU_AUTH             = 'X'
+   PLVAR                      = '01'
+   OTYPE                      = 'P'
+   OBJID                      = pernr
+   INFTY                      = '0001'
+*   ISTAT                      = ' '
+*   EXTEND                     = 'X'
+*   SUBTY                      = ' '
+   BEGDA                      = '19000101'
+   ENDDA                      = '99991231'
+*   CONDITION                  = '00000'
+*   INFTB                      = '1'
+*   SORT                       = 'X'
+*   VIA_T777D                  = ' '
+  TABLES
+    innnn                      = p0001
+*   OBJECTS                    =
+  EXCEPTIONS
+    ALL_INFTY_WITH_SUBTY       = 1
+    NOTHING_FOUND              = 2
+    NO_OBJECTS                 = 3
+    WRONG_CONDITION            = 4
+    WRONG_PARAMETERS           = 5
+    OTHERS                     = 6
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ELSE.
+  READ TABLE p0001 INTO x0001 WITH KEY endda = '99991231'.
+  IF sy-subrc eq 0.
+    nama = x0001-sname.
+
+
+    data:
+           v_OBJID  TYPE  SOBID   ,
+           v_TEXT   TYPE  CHAR1   ,
+           v_OTYPE  TYPE  OTYPE   ,
+           v_NAME   TYPE  CHAR50  .
+
+    v_OBJID  = x0001-plans.
+    v_TEXT  = 'X'.
+    v_OTYPE  = 'S'.
+    CALL FUNCTION 'ZHR_GET_1000'
+      EXPORTING
+        pernr                = '00000000'
+        objid                = v_OBJID
+        TEXT                 = v_TEXT
+        OTYPE                = v_OTYPE
+*       JADWAL               =
+     IMPORTING
+       NAME                  = v_NAME
+*       CHARACTERISTIC       =
+*     CHANGING
+*       BEGDA                =
+*       ENDDA                =
+              .
+    jabatan = v_name.
+    CLEAR v_name.
+    v_OBJID  = x0001-orgeh.
+    v_TEXT  = 'X'.
+    v_OTYPE  = 'O'.
+    CALL FUNCTION 'ZHR_GET_1000'
+      EXPORTING
+        pernr                = '00000000'
+        objid                = v_OBJID
+        TEXT                 = v_TEXT
+        OTYPE                = v_OTYPE
+*       JADWAL               =
+     IMPORTING
+       NAME                  = v_NAME
+*       CHARACTERISTIC       =
+*     CHANGING
+*       BEGDA                =
+*       ENDDA                =
+              .
+    divisi = v_name.
+  ENDIF.
+ENDIF.
+
+
+
+
+mail '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/ xhtml1-transitional.dtd">'   .
+
+*mail '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'
+mail '<html xmlns="http://www.w3.org/1999/xhtml">'.
+mail '<head>'.
+mail '<!-- HTML Codes by Quackit.com -->'.
+mail '<title>'.
+mail 'Title appears in the browser title bar...</title>'.
+mail '<meta name="keywords" content="Separate keywords or phrases with a comma (example: html code generator, generate html, ...)">'.
+mail '<meta name="description" content="Make it nice and short, but descriptive. search results pages...">'.
+mail '</head>'.
+mail '<body>'.
+mail '<div style="width:100%;height:100%;background-color:#ffffff;background-repeat:no-repeat;background-position:top left;background-attachment:fixed;">'.
+mail '<h4 style="font-family:Arial;color:#000000;">Kepada Yth.</h4>'.
+
+CONCATENATE '<h4 style="font-family:Arial;color:#000000;">' NAME '</h4>' INTO char.
+append char to content.
+
+*mail '<h4 style="font-family:Arial;color:#000000;">app1</h4>
+mail '<p>&nbsp;</p>'.
+mail '<p>Sehubungan dengan program penyusunan Rencana Pembelajaran Individu (RPI) pegawai SKK Migas tahun 2019 yang saat ini tengah dilakukan. Kami mohon Bapak/Ibu untuk dapat melakukan <strong><em>review</em> dan persetujuan </strong>atas program yang'.
+mail 'diusulkan oleh staf yang berada pada fungsi Bapak/Ibu. Adapun <em>review</em> dan persetujuan atas program yang diusulkan oleh pegawai yang berada pada fungsi Bapak/Ibu sbb :</p>'.
+*mail 'diusulkan oleh staf yang berada pada fungsi Bapak/Ibu. Adapun <em>review</em> dan persetujuan terkait pelatihan dimaksud dapat dilihat pada tautan sbb :</p>'.
+*mail '<a href="http://portaldev.bpmigas.com"><p><strong>http://portaldev.bpmigas.com</strong></p></a>'.
+
+                                                                 .
+mail'<table style="height: 73px; width: 490px;" border="1"> '    .
+mail'<tbody>                                                '    .
+mail'<tr>                                                   '    .
+mail'<td style="width: 84px;">Nama</td>                     '    .
+mail'<td style="width: 17px;">:</td>                        '    .
+*mail'<td style="width: 373px;">&nbsp;</td>                  '   .
+CONCATENATE '<td style="width: 373px;">' nama '</td>'  INTO char .
+append char to content.
+
+mail'</tr>                                                  '    .
+mail'<tr>                                                   '    .
+mail'<td style="width: 84px;">Jabatan</td>                  '    .
+mail'<td style="width: 17px;">:</td>                        '    .
+*mail'<td style="width: 373px;">&nbsp;</td>                  '   .
+
+CONCATENATE '<td style="width: 373px;">' jabatan '</td>'  INTO char .
+append char to content.
+
+mail'</tr>                                                  '    .
+mail'<tr>                                                   '    .
+mail'<td style="width: 84px;">Divisi</td>                   '    .
+mail'<td style="width: 17px;">:</td>                        '    .
+*mail'<td style="width: 373px;">&nbsp;</td>                  '   .
+
+
+CONCATENATE '<td style="width: 373px;">' divisi '</td>'  INTO char .
+append char to content.
+
+mail'</tr>                                                  '    .
+mail'</tbody>                                               '    .
+mail'</table>                                               '    .
+
+mail 'Adapun review dan persetujuan terkait pelatihan dimaksud dapat dilihat pada tautan sbb :'.
+mail '<table style="height: 28px;" border="1" width="211">'.
+mail '<tbody>'.
+mail '<tr>'.
+
+DATA :
+       ZDATE type char30,
+       SUBRC type subrc.
+CALL FUNCTION 'ZHR_DATE_VALID'
+ IMPORTING
+   ZDATE         = ZDATE
+   SUBRC         = SUBRC
+          .
+
+CONCATENATE '<td><a href="' zurl '"><p><strong>' zurl '</strong></p></a></td>' INTO zmail.
+mail zmail.
+*mail '<td><a href="http://portaldev.bpmigas.com"><p><strong>http://portaldev.bpmigas.com</strong></p></a></td>'.
+mail '</tr>'.
+mail '</tbody>'.
+mail '</table>'.
+
+
+mail '<p>Batas waktu penyampaian usulan Rencana Pembelajaran Individu (RPI) pegawai adalah tanggal <strong>'.
+mail ZDATE.
+mail '</strong> untuk selanjutnya dilakukan review'.
+*mail '<p>Batas waktu penyampaian usulan Rencana Pembelajaran Individu (RPI) pegawai adalah tanggal <strong>17 Mei 2019</strong> untuk selanjutnya dilakukan review'.
+mail 'oleh Divisi SDM SKK Migas guna mendapatkan persetujuan Manajemen SKK Migas lebih lanjut.</p>'.
+mail '<p>&nbsp;</p>'.
+mail '<p>Demikian disampaikan, atas perhatiannya kami ucapkan terima kasih.</p>'.
+mail '<p>Salam,</p>'.
+mail '<p>Divisi Sumber Daya Manusia</p>'.
+mail '</div>'.
+mail '</body>'.
+mail '</html>'.
+
+
+
+ENDFUNCTION.
