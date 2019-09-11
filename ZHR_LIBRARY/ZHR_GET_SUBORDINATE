@@ -1,0 +1,369 @@
+FUNCTION ZHR_GET_SUBORDINATE.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(UNAME) TYPE  UNAME
+*"     REFERENCE(RELAT) TYPE  CHAR4 DEFAULT 'B002'
+*"     REFERENCE(IMP_PERNR) TYPE  PERNR_D OPTIONAL
+*"     REFERENCE(VALID_DATE) TYPE  DATUM OPTIONAL
+*"  TABLES
+*"      EMPLOYEE STRUCTURE  P0001
+*"----------------------------------------------------------------------
+DATA :
+      xPERNR  TYPE  PERNR_D ,
+      xSUBRC  TYPE  SUBRC   ,
+      xENAME  TYPE  EMNAM   ,
+      st_1001 TYPE TABLE OF p1001,
+      ct_1001 TYPE TABLE OF p1001,
+      tt_1001 TYPE TABLE OF p1001,
+      pt_1001 TYPE TABLE OF p1001,
+      lx_1001 TYPE p1001,
+      px_1001 TYPE p1001,
+      cx_1001 TYPE p1001,
+      x_1001 TYPE p0001,
+      xa0001 TYPE  pa0001,
+      pa0001 TYPE TABLE OF  pa0001,
+      p0001 TYPE TABLE OF p0001,
+      x0001 TYPE p0001.
+
+DATA : objid TYPE hrobjid.
+
+
+
+
+CALL FUNCTION 'ZHR_GET_UID'
+  EXPORTING
+    user          = UNAME
+ IMPORTING
+   PERNR         = xPERNR
+   SUBRC         = xSUBRC
+   ENAME         = xENAME
+          .
+IF imp_pernr IS NOT INITIAL.
+xpernr = imp_pernr.
+ENDIF.
+
+objid = xpernr.
+
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+   EXPORTING
+*     AUTHORITY              = 'DISP'
+*     WITH_STRU_AUTH         = 'X'
+      PLVAR                  = '01'
+      OTYPE                  = 'P'
+      OBJID                  = objid
+*     ISTAT                  = ' '
+*     EXTEND                 = 'X'
+*     SUBTY                  = ' '
+     BEGDA                  = '19000101'
+     ENDDA                  = '99991231'
+*     CONDITION              = '00000'
+*     SORT                   = 'X'
+*     WITH_EV                = ' '
+*     ADATA                  = 'X'
+*     AUTH_SOBID             = ' '
+    TABLES
+      i1001                  = st_1001
+*     OBJECTS                =
+    EXCEPTIONS
+      NOTHING_FOUND          = 1
+      WRONG_CONDITION        = 2
+      WRONG_PARAMETERS       = 3
+      OTHERS                 = 4
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+  sort st_1001 DESCENDING by endda.
+  READ TABLE st_1001 INTO lx_1001 WITH KEY sclas = 'S' endda = '99991231' rsign = 'B' relat = '008'.
+  CHECK lx_1001 IS NOT INITIAL.
+  objid = lx_1001-sobid(8).
+
+
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+   EXPORTING
+*     AUTHORITY              = 'DISP'
+*     WITH_STRU_AUTH         = 'X'
+      PLVAR                  = '01'
+      OTYPE                  = 'S'
+      OBJID                  = objid
+*     ISTAT                  = ' '
+*     EXTEND                 = 'X'
+*     SUBTY                  = ' '
+     BEGDA                  = '19000101'
+     ENDDA                  = '99991231'
+*     CONDITION              = '00000'
+*     SORT                   = 'X'
+*     WITH_EV                = ' '
+*     ADATA                  = 'X'
+*     AUTH_SOBID             = ' '
+    TABLES
+      i1001                  = ct_1001
+*     OBJECTS                =
+    EXCEPTIONS
+      NOTHING_FOUND          = 1
+      WRONG_CONDITION        = 2
+      WRONG_PARAMETERS       = 3
+      OTHERS                 = 4
+            .
+CASE relat.
+  WHEN 'A002'.
+    if valid_date IS INITIAL.
+ LOOP AT ct_1001 INTO cx_1001 WHERE rsign = 'A' AND relat = '002' AND endda = '99991231'.
+      objid = cx_1001-sobid(8).
+  REFRESH tt_1001.
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+   EXPORTING
+*     AUTHORITY              = 'DISP'
+*     WITH_STRU_AUTH         = 'X'
+      PLVAR                  = '01'
+      OTYPE                  = 'S'
+      OBJID                  = objid
+*     ISTAT                  = ' '
+*     EXTEND                 = 'X'
+*     SUBTY                  = ' '
+     BEGDA                  = '19000101'
+     ENDDA                  = '99991231'
+*     CONDITION              = '00000'
+*     SORT                   = 'X'
+*     WITH_EV                = ' '
+*     ADATA                  = 'X'
+*     AUTH_SOBID             = ' '
+    TABLES
+      i1001                  = tt_1001
+*     OBJECTS                =
+    EXCEPTIONS
+      NOTHING_FOUND          = 1
+      WRONG_CONDITION        = 2
+      WRONG_PARAMETERS       = 3
+      OTHERS                 = 4
+            .
+   APPEND LINES OF tt_1001[] TO pt_1001[].
+  endloop.
+  ELSE.
+    LOOP AT ct_1001 INTO cx_1001 WHERE rsign = 'A' AND relat = '002' AND begda lE valid_date AND endda GE valid_date.
+*    LOOP AT ct_1001 INTO cx_1001 WHERE rsign = 'A' AND relat = '002' AND endda = '99991231'.
+      objid = cx_1001-sobid(8).
+  REFRESH tt_1001.
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+   EXPORTING
+*     AUTHORITY              = 'DISP'
+*     WITH_STRU_AUTH         = 'X'
+      PLVAR                  = '01'
+      OTYPE                  = 'S'
+      OBJID                  = objid
+*     ISTAT                  = ' '
+*     EXTEND                 = 'X'
+*     SUBTY                  = ' '
+     BEGDA                  = '19000101'
+     ENDDA                  = '99991231'
+*     CONDITION              = '00000'
+*     SORT                   = 'X'
+*     WITH_EV                = ' '
+*     ADATA                  = 'X'
+*     AUTH_SOBID             = ' '
+    TABLES
+      i1001                  = tt_1001
+*     OBJECTS                =
+    EXCEPTIONS
+      NOTHING_FOUND          = 1
+      WRONG_CONDITION        = 2
+      WRONG_PARAMETERS       = 3
+      OTHERS                 = 4
+            .
+   APPEND LINES OF tt_1001[] TO pt_1001[].
+  endloop.
+  ENDIF.
+  WHEN 'B002'.
+
+
+*  CALL FUNCTION 'RH_READ_INFTY_1001'
+*   EXPORTING
+**     AUTHORITY              = 'DISP'
+**     WITH_STRU_AUTH         = 'X'
+*      PLVAR                  = '01'
+*      OTYPE                  = 'S'
+*      OBJID                  = objid
+**     ISTAT                  = ' '
+**     EXTEND                 = 'X'
+**     SUBTY                  = ' '
+*     BEGDA                  = '19000101'
+*     ENDDA                  = '99991231'
+**     CONDITION              = '00000'
+**     SORT                   = 'X'
+**     WITH_EV                = ' '
+**     ADATA                  = 'X'
+**     AUTH_SOBID             = ' '
+*    TABLES
+*      i1001                  = ct_1001
+**     OBJECTS                =
+*    EXCEPTIONS
+*      NOTHING_FOUND          = 1
+*      WRONG_CONDITION        = 2
+*      WRONG_PARAMETERS       = 3
+*      OTHERS                 = 4
+*            .
+
+*  READ TABLE ct_1001 INTO cx_1001 WITH KEY rsign = 'B' relat = '002'.
+*  CHECK cx_1001 IS NOT INITIAL.
+    LOOP AT ct_1001 INTO cx_1001 WHERE rsign = 'B' AND relat = '002' AND endda = '99991231'.
+      objid = cx_1001-sobid(8).
+  REFRESH tt_1001.
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+   EXPORTING
+*     AUTHORITY              = 'DISP'
+*     WITH_STRU_AUTH         = 'X'
+      PLVAR                  = '01'
+      OTYPE                  = 'S'
+      OBJID                  = objid
+*     ISTAT                  = ' '
+*     EXTEND                 = 'X'
+*     SUBTY                  = ' '
+     BEGDA                  = '19000101'
+     ENDDA                  = '99991231'
+*     CONDITION              = '00000'
+*     SORT                   = 'X'
+*     WITH_EV                = ' '
+*     ADATA                  = 'X'
+*     AUTH_SOBID             = ' '
+    TABLES
+      i1001                  = tt_1001
+*     OBJECTS                =
+    EXCEPTIONS
+      NOTHING_FOUND          = 1
+      WRONG_CONDITION        = 2
+      WRONG_PARAMETERS       = 3
+      OTHERS                 = 4
+            .
+   APPEND LINES OF tt_1001[] TO pt_1001[].
+  endloop.
+
+  WHEN 'Z900'.
+DATA :
+      I1001 type table of   p1001 ,
+      x1001 type     p1001 ,
+      RESULT_TAB   type table of   SWHACTOR ,
+      xRES_TAB     type            SWHACTOR ,
+      RESULT_OBJEC type table of   OBJEC    ,
+      RESULT_STRUC type table of   STRUC    .
+
+    CALL FUNCTION 'RH_STRUC_GET'
+      EXPORTING
+        act_otype              = 'S'
+        act_objid              = objid
+        act_wegid              = 'B002'
+*       ACT_INT_FLAG           =
+*       ACT_PLVAR              = ' '
+*       ACT_BEGDA              = SY-DATUM
+*       ACT_ENDDA              = SY-DATUM
+       ACT_TDEPTH             = 5
+*       ACT_TFLAG              = 'X'
+*       ACT_VFLAG              = 'X'
+*       AUTHORITY_CHECK        = 'X'
+*       TEXT_BUFFER_FILL       =
+*       BUFFER_MODE            =
+*     IMPORTING
+*       ACT_PLVAR              =
+     TABLES
+       RESULT_TAB             = RESULT_TAB
+       RESULT_OBJEC           = RESULT_OBJEC
+       RESULT_STRUC           = RESULT_STRUC
+     EXCEPTIONS
+       NO_PLVAR_FOUND         = 1
+       NO_ENTRY_FOUND         = 2
+       OTHERS                 = 3
+              .
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    else.
+      LOOP AT RESULT_TAB INTO xRES_TAB.
+        objid = xRES_TAB-objid.
+      CALL FUNCTION 'RH_READ_INFTY_1001'
+       EXPORTING
+         AUTHORITY              = 'DISP'
+         WITH_STRU_AUTH         = 'X'
+         PLVAR                  = '01'
+         OTYPE                  = 'S'
+         OBJID                  = objid
+*         ISTAT                  = ' '
+*         EXTEND                 = 'X'
+*         SUBTY                  = ' '
+         BEGDA                  = '19000101'
+         ENDDA                  = '99991231'
+*         CONDITION              = '00000'
+*         SORT                   = 'X'
+*         WITH_EV                = ' '
+*         ADATA                  = 'X'
+*         AUTH_SOBID             = ' '
+        TABLES
+          i1001                  = I1001
+*         OBJECTS                =
+       EXCEPTIONS
+         NOTHING_FOUND          = 1
+         WRONG_CONDITION        = 2
+         WRONG_PARAMETERS       = 3
+         OTHERS                 = 4
+                .
+      IF sy-subrc <> 0.
+* Implement suitable error handling here
+      ENDIF.
+*      pt_1001 =   I1001.
+      APPEND LINES OF i1001  TO pt_1001.
+      ENDLOOP.
+    ENDIF.
+
+
+  WHEN OTHERS.
+ENDCASE.
+
+
+  LOOP AT pt_1001 INTO px_1001 WHERE sclas = 'P' AND endda = '99991231' AND rsign = 'A' AND relat = '008'.
+    CLEAR x_1001.
+    x_1001-pernr = px_1001-sobid(8).
+    REFRESH p0001.
+    CALL FUNCTION 'RH_READ_INFTY'
+     EXPORTING
+*       AUTHORITY                  = 'DISP'
+*       WITH_STRU_AUTH             = 'X'
+       PLVAR                      = '01'
+       OTYPE                      = 'P'
+       OBJID                      = x_1001-pernr
+       INFTY                      = '0001'
+*       ISTAT                      = ' '
+*       EXTEND                     = 'X'
+*       SUBTY                      = ' '
+*       BEGDA                      = '19000101'
+*       ENDDA                      = '99991231'
+*       CONDITION                  = '00000'
+*       INFTB                      = '1'
+*       SORT                       = 'X'
+*       VIA_T777D                  = ' '
+      TABLES
+        innnn                      = p0001
+*       OBJECTS                    =
+     EXCEPTIONS
+       ALL_INFTY_WITH_SUBTY       = 1
+       NOTHING_FOUND              = 2
+       NO_OBJECTS                 = 3
+       WRONG_CONDITION            = 4
+       WRONG_PARAMETERS           = 5
+       OTHERS                     = 6
+              .
+    IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ENDIF.
+    LOOP AT p0001 INTO x0001 WHERE endda = '99991231'.
+      MOVE-CORRESPONDING x0001 to x_1001.
+      x_1001-ename = x0001-ename.
+      MOVE-CORRESPONDING x_1001 to xa0001.
+      append xa0001 to pa0001.
+      append x_1001 to EMPLOYEE.
+    ENDLOOP.
+    CLEAR x_1001.
+  ENDLOOP.
+    CLEAR x_1001.
+*    ENDLOOP.
+
+*EMPLOYEE = pa0001.
+
+ENDFUNCTION.
