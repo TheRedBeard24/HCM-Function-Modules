@@ -1,0 +1,281 @@
+FUNCTION zhr_get_quali.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"     VALUE(POSITION) TYPE  HROBJID OPTIONAL
+*"     VALUE(JOB) TYPE  HROBJID OPTIONAL
+*"  EXPORTING
+*"     REFERENCE(RESULT) TYPE  ZHR_TT_QUALIFICATION
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"----------------------------------------------------------------------
+DATA : new_data TYPE c.
+DATA :
+      OBJECTS TYPE TABLE OF HRSOBID,
+      xOBJECTS TYPE   HRSOBID,
+*      ERR_OBJECTS STRUCTURE  HRSOBID OPTIONAL
+      PROFILE type table of HRPE_PROFQ,
+      xPROFILE type   HRPE_PROFQ.
+  DATA : lt_qual TYPE TABLE OF zhr_st_qualification,
+         lx_qual TYPE zhr_st_qualification,
+         lx_1000 TYPE hrp1000,
+         lt_1000 TYPE TABLE OF hrp1000,
+         lx_1001 TYPE p1001,
+         qx_1001 TYPE p1001,
+         qk_1001 TYPE TABLE OF p1001,
+*       lt_1001 TYPE STANDARD TABLE OF string,
+         lt_1001 TYPE STANDARD TABLE OF p1001,
+         ex_pernr TYPE plog-objid,
+         name           TYPE char50,
+         characteristic TYPE char1.
+  ex_pernr = pernr.
+
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+    EXPORTING
+      authority        = 'DISP'
+      with_stru_auth   = 'X'
+      plvar            = '01'
+      otype            = 'P'
+      objid            = ex_pernr
+*     ISTAT            = ' '
+*     EXTEND           = 'X'
+*     SUBTY            = ' '
+      begda            = '19000101'
+      endda            = '99991231'
+*     CONDITION        = '00000'
+*     SORT             = 'X'
+*     WITH_EV          = ' '
+*     ADATA            = 'X'
+*     AUTH_SOBID       = ' '
+    TABLES
+      i1001            = lt_1001[]
+*     OBJECTS          =
+    EXCEPTIONS
+      nothing_found    = 1
+      wrong_condition  = 2
+      wrong_parameters = 3
+      OTHERS           = 4.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+
+  CHECK lt_1001[] IS NOT INITIAL.
+*  READ TABLE lt_1001 INTO qk_1001 WITH KEY sclas = 'QK'.
+  DELETE lt_1001 WHERE sclas NE 'Q'.
+  DELETE lt_1001 WHERE endda ne '99991231'.
+  LOOP AT lt_1001 INTO lx_1001.
+*    objid = lx_1001-sobid(8).
+    CALL FUNCTION 'ZHR_GET_1000'
+      EXPORTING
+        pernr          = pernr
+        objid          = lx_1001-sobid
+      IMPORTING
+        name           = name
+        characteristic = characteristic.
+
+
+    lx_qual-ttype         = lx_1001-sclas.
+    lx_qual-tbjid         = lx_1001-sobid.
+    lx_qual-vbegd         = lx_1001-begda.
+    lx_qual-vendd         = lx_1001-endda.
+    lx_qual-ttext        = name           .
+    lx_qual-profcy       = characteristic .
+
+    lx_qual-profc_text    = characteristic.
+
+    CLEAR name.
+   ex_pernr =  lx_1001-sobid.
+  CALL FUNCTION 'RH_READ_INFTY_1001'
+    EXPORTING
+      authority        = 'DISP'
+      with_stru_auth   = 'X'
+      plvar            = '01'
+      otype            = 'Q'
+      objid            = ex_pernr
+*     ISTAT            = ' '
+*     EXTEND           = 'X'
+*     SUBTY            = ' '
+      begda            = '19000101'
+      endda            = '99991231'
+*     CONDITION        = '00000'
+*     SORT             = 'X'
+*     WITH_EV          = ' '
+*     ADATA            = 'X'
+*     AUTH_SOBID       = ' '
+    TABLES
+      i1001            = qk_1001[]
+*     OBJECTS          =
+    EXCEPTIONS
+      nothing_found    = 1
+      wrong_condition  = 2
+      wrong_parameters = 3
+      OTHERS           = 4.
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+  ENDIF.
+  READ TABLE qk_1001 INTO qx_1001 WITH KEY sclas = 'QK'.
+
+   lx_qual-QUAL_GR =  qx_1001-sobid.
+    CALL FUNCTION 'ZHR_GET_1000'
+      EXPORTING
+        pernr                = '00000000'
+        objid                = qx_1001-sobid
+        TEXT                 = 'X'
+        OTYPE                = 'QK'
+      IMPORTING
+        NAME                 = name
+        CHARACTERISTIC       = characteristic
+              .
+
+    lx_qual-class_text    = name.
+
+    APPEND lx_qual TO lt_qual.
+
+  ENDLOOP.
+
+  RESULT[] = lt_qual[].
+
+  IF Job IS NOT INITIAL.
+* get Job
+
+xOBJECTS-otype = 'C'.
+xOBJECTS-plvar = '01'.
+xOBJECTS-sobid = Job.
+append xobjects to objects.
+
+CALL FUNCTION 'RHPP_R_PROFILE_READ'
+ EXPORTING
+   BEGDA                  = SY-DATUM
+   ENDDA                  = SY-DATUM
+   WITH_STEXT             = 'X'
+   WITH_QK_INFO           = 'X'
+*   CHECK_NOTE             = ' '
+  TABLES
+    objects                = OBJECTS
+*   ERR_OBJECTS            =
+    profile                = PROFILE
+ EXCEPTIONS
+   NO_AUTHORITY           = 1
+   WRONG_OTYPE            = 2
+   OBJECT_NOT_FOUND       = 3
+   UNDEFINED              = 4
+   OTHERS                 = 5
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
+  LOOP AT profile INTO xprofile.
+    READ TABLE result INTO lx_qual WITH KEY tbjid = xprofile-tbjid.
+    IF sy-subrc eq 0.
+      lx_qual-req_score = xprofile-profcy.
+      lx_qual-diff_score = lx_qual-profcy - xprofile-profcy.
+      lx_qual-otype = 'C'.
+      lx_qual-hrobjid = Job.
+      MODIFY result FROM lx_qual TRANSPORTING req_score diff_score otype hrobjid WHERE tbjid = xprofile-tbjid.
+
+    ELSE.
+      CLEAR lx_qual.
+      lx_qual-req_score = xprofile-profcy.
+
+      lx_qual-diff_score = lx_qual-profcy - xprofile-profcy.
+
+      lx_qual-otype = 'S'.
+      lx_qual-hrobjid = POSITION.
+
+       lx_qual-ttype       =  'Q'.
+       lx_qual-tbjid      =  xprofile-tbjid.
+       lx_qual-vbegd           = xprofile-vbegd.
+       lx_qual-vendd           =  xprofile-vendd.
+       lx_qual-ttext           =  xprofile-ttext.
+       lx_qual-profcy               = '-'.
+       lx_qual-class_text           =  xprofile-class_text.
+       lx_qual-profc_text           =  'Does Not Exist.'.
+       lx_qual-qual_gr           =  xprofile-class_id.
+
+
+      append lx_qual to result.
+    ENDIF.
+  ENDLOOP.
+
+  ENDIF.
+
+  IF position IS NOT INITIAL.
+
+* get position
+REFRESH objects.
+REFRESH PROFILE.
+
+xOBJECTS-otype = 'S'.
+xOBJECTS-plvar = '01'.
+xOBJECTS-sobid = position.
+append xobjects to objects.
+
+CALL FUNCTION 'RHPP_R_PROFILE_READ'
+ EXPORTING
+   BEGDA                  = SY-DATUM
+   ENDDA                  = SY-DATUM
+   WITH_STEXT             = 'X'
+   WITH_QK_INFO           = 'X'
+*   CHECK_NOTE             = ' '
+  TABLES
+    objects                = OBJECTS
+*   ERR_OBJECTS            =
+    profile                = PROFILE
+ EXCEPTIONS
+   NO_AUTHORITY           = 1
+   WRONG_OTYPE            = 2
+   OBJECT_NOT_FOUND       = 3
+   UNDEFINED              = 4
+   OTHERS                 = 5
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
+  LOOP AT profile INTO xprofile.
+    READ TABLE result INTO lx_qual WITH KEY tbjid = xprofile-tbjid.
+    IF sy-subrc eq 0.
+      lx_qual-req_score = xprofile-profcy.
+      lx_qual-diff_score = lx_qual-profcy - xprofile-profcy.
+      CLEAR new_data.
+      IF lx_qual-otype IS NOT INITIAL.
+        new_data = 'X'.
+      ENDIF.
+      lx_qual-otype = 'S'.
+      lx_qual-hrobjid = POSITION.
+
+      if new_data IS NOT INITIAL.
+      append lx_qual to result.
+      ELSE.
+      MODIFY result FROM lx_qual TRANSPORTING req_score diff_score otype hrobjid WHERE tbjid = xprofile-tbjid.
+      endif.
+     ELSE.
+      CLEAR lx_qual.
+      lx_qual-req_score = xprofile-profcy.
+
+      lx_qual-diff_score = lx_qual-profcy - xprofile-profcy.
+
+      lx_qual-otype = 'S'.
+      lx_qual-hrobjid = POSITION.
+
+       lx_qual-ttype       =  'Q'.
+       lx_qual-tbjid      =  xprofile-tbjid.
+       lx_qual-vbegd           = xprofile-vbegd.
+       lx_qual-vendd           =  xprofile-vendd.
+       lx_qual-ttext           =  xprofile-ttext.
+       lx_qual-profcy               = '-'.
+       lx_qual-class_text           =  xprofile-class_text.
+       lx_qual-profc_text           =  'Does Not Exist.'.
+       lx_qual-qual_gr           =  xprofile-class_id.
+
+
+      append lx_qual to result.
+    ENDIF.
+  ENDLOOP.
+
+  ENDIF.
+
+
+  SORT result ASCENDING by class_text ttext.
+ENDFUNCTION.
