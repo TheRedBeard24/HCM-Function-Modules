@@ -1,0 +1,145 @@
+FUNCTION ZHR_ACTIO_INFTY.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(INFTY) TYPE  CHAR4
+*"     REFERENCE(OPERATION) TYPE  PSPAR-ACTIO
+*"     VALUE(RECORD)
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"     REFERENCE(BEGDA) TYPE  DATUM
+*"     REFERENCE(ENDDA) TYPE  DATUM
+*"  EXPORTING
+*"     REFERENCE(SUBRC) TYPE  C
+*"----------------------------------------------------------------------
+FIELD-SYMBOLS <GUID>.
+FIELD-SYMBOLS <seqnr>.
+DATA :
+seqnr     TYPE p9004-seqnr,
+INFTp     type  PRELP-INFTY    ,
+NUMBER    type  P0001-PERNR    ,
+*RECORD                         ,
+OPERA   type  PSPAR-ACTIO    ,
+RETURN    type  BAPIRETURN1    ,
+KEY       type  BAPIPAKEY      .
+
+INFTp = INFTy.
+NUMBER = PERNR.
+CALL FUNCTION 'BAPI_EMPLOYEE_ENQUEUE'
+  EXPORTING
+    number        = NUMBER
+ IMPORTING
+   RETURN        = RETURN
+          .
+OPERA = OPERATION.
+
+IF opera eq 'DEL'.
+  DATA : lt_x9004 TYPE TABLE OF p9004.
+  DATA : lx_x9004 TYPE p9004.
+  CALL FUNCTION 'RH_READ_INFTY_NNNN'
+    EXPORTING
+*     AUTHORITY                   = 'DISP'
+*     WITH_STRU_AUTH              = 'X'
+      PLVAR                       = '01'
+      OTYPE                       = 'P'
+      OBJID                       = PERNR
+      infty                       = '9004'
+*     ISTAT                       = ' '
+*     EXTEND                      = 'X'
+*     SUBTY                       = ' '
+*     BEGDA                       = '19000101'
+*     ENDDA                       = '99991231'
+*     CONDITION                   = '00000'
+*     INFTB                       = '1'
+*     SORT                        = 'X'
+    tables
+      innnn                       = lt_x9004
+*     OBJECTS                     =
+    EXCEPTIONS
+      NOTHING_FOUND               = 1
+      WRONG_CONDITION             = 2
+      INFOTYP_NOT_SUPPORTED       = 3
+      WRONG_PARAMETERS            = 4
+      OTHERS                      = 5
+            .
+  IF sy-subrc <> 0.
+* Implement suitable error handling here
+    ELSE.
+      SORT lt_x9004 DESCENDING by zguid zstatus .
+      ASSIGN COMPONENT 'ZGUID' OF STRUCTURE RECORD to <GUID>.
+      IF <GUID> IS ASSIGNED.
+         READ TABLE lt_x9004 INTO lx_x9004 WITH KEY ZGUID = <GUID>.
+      IF sy-subrc eq 0.
+        MOVE-CORRESPONDING lx_x9004 to RECORD.
+        ASSIGN COMPONENT 'SEQNR' OF STRUCTURE record to <seqnr>.
+        IF <seqnr> IS ASSIGNED.
+          seqnr = <seqnr>.
+        ENDIF.
+      ENDIF.
+      ENDIF.
+
+  ENDIF.
+
+  CALL FUNCTION 'HR_INFOTYPE_OPERATION'
+  EXPORTING
+    infty                  = INFTp
+    number                 = NUMBER
+*   SUBTYPE                =
+*   OBJECTID               =
+*   LOCKINDICATOR          =
+    VALIDITYEND            =  endda
+    VALIDITYBEGIN          =  begda
+   RECORDNUMBER            = seqnr
+    record                 =  RECORD
+    operation              = OPERA
+    TCLAS                  = 'A'
+    DIALOG_MODE            = '0'
+    NOCOMMIT               = space
+*   VIEW_IDENTIFIER        =
+*   SECONDARY_RECORD       =
+ IMPORTING
+   RETURN                 = RETURN
+   KEY                    = KEY
+          .
+
+ENDIF.
+
+if opera ne 'DEL'.
+CALL FUNCTION 'HR_INFOTYPE_OPERATION'
+  EXPORTING
+    infty                  = INFTp
+    number                 = NUMBER
+*   SUBTYPE                =
+*   OBJECTID               =
+*   LOCKINDICATOR          =
+    VALIDITYEND            =  endda
+    VALIDITYBEGIN          =  begda
+*   RECORDNUMBER            = seqnr
+    record                 =  RECORD
+    operation              = OPERA
+    TCLAS                  = 'A'
+    DIALOG_MODE            = '0'
+    NOCOMMIT               = space
+*   VIEW_IDENTIFIER        =
+*   SECONDARY_RECORD       =
+ IMPORTING
+   RETURN                 = RETURN
+   KEY                    = KEY
+          .
+ENDIF.
+IF return-id IS INITIAL.
+  commit WORK.
+  SUBRC = 'S'.
+ELSE.
+  subrc = return-id.
+ENDIF.
+
+CALL FUNCTION 'BAPI_EMPLOYEE_DEQUEUE'
+  EXPORTING
+    number        = NUMBER
+ IMPORTING
+   RETURN        = RETURN
+          .
+
+
+
+ENDFUNCTION.
