@@ -1,0 +1,182 @@
+FUNCTION zfm_func9004.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(STATUS) TYPE  ZDE_DEVSTS OPTIONAL
+*"     VALUE(READ_ONLY) TYPE  CHAR1 OPTIONAL
+*"     VALUE(PERNR) TYPE  PERNR_D
+*"     VALUE(NOTE) TYPE  STRING OPTIONAL
+*"     VALUE(ZSTRUC) TYPE  ZTB_GUIDMAP_9004 OPTIONAL
+*"     VALUE(BUTTON) TYPE  CHAR2 OPTIONAL
+*"  EXPORTING
+*"     VALUE(RETURN) TYPE  CHAR255
+*"     VALUE(RT_TYPE) TYPE  CHAR1
+*"     VALUE(GUID) TYPE  GUID_32
+*"  TABLES
+*"      DATA STRUCTURE  ZTB_GUIDMAP_9004
+*"----------------------------------------------------------------------
+  DATA : lt_table TYPE TABLE OF ztb_guidmap_9004,
+         struc TYPE ztb_guidmap_9004,
+         lx_table TYPE ztb_guidmap_9004,
+         error TYPE char1,
+         ename TYPE emnam,
+         lx_note TYPE ztb_guidmap_note.
+
+      DATA tabix TYPE sy-tabix.
+
+*  CALL FUNCTION 'GUID_CREATE'
+*       IMPORTING
+*       ev_guid_32 = zstruc-guid.
+
+  SELECT * FROM ztb_guidmap_9004 INTO CORRESPONDING FIELDS OF TABLE lt_table WHERE pernr = pernr.
+
+  IF read_only IS NOT INITIAL.
+
+
+    SORT lt_table DESCENDING BY guid status_item.
+    DELETE ADJACENT DUPLICATES FROM lt_table COMPARING guid.
+*    READ TABLE lt_table INTO lx_table WITH KEY zjadwal = zstruc-zjadwal zlokasi = zstruc-zlokasi ztraining = zstruc-ztraining.
+**  IF sy-subrc eq 0.
+*    IF lx_table-status_item NE '6' AND sy-subrc EQ 0.
+*      return = 'This data is already exist. duplicate data is prohibitied.'.
+*      rt_type = 'E'.
+*
+*      IF lx_table-status_item EQ '0'.
+*        CLEAR : return, rt_type.
+*
+**        lx_table-guid = zstruc-guid.
+**        lx_table-status_item = '1'.
+**        INSERT ztb_guidmap_9004  FROM lx_table.
+**        COMMIT WORK.
+**        return = 'Data Has been saved.'.
+**        rt_type = 'S'.
+**        GUID = lx_table-guid.
+*      ENDIF.
+*    endif.
+**    ELSE.
+
+      DELETE lt_table WHERE status_item EQ '6'.
+      DELETE lt_table WHERE zyear NE sy-datum(4).
+*   IF sy-subrc eq 0.
+      DESCRIBE TABLE lt_table LINES tabix.
+      IF tabix GE '2'.
+      RETURN = 'Plan Quota is Full. Only 2 Training a year.'.
+      RT_TYPE = 'E'.
+      ENDIF.
+*   ENDIF.
+  ELSE.
+
+    SORT lt_table DESCENDING BY guid status_item.
+    DELETE ADJACENT DUPLICATES FROM lt_table COMPARING guid.
+    READ TABLE lt_table INTO lx_table WITH KEY zjadwal = zstruc-zjadwal zlokasi = zstruc-zlokasi ztraining = zstruc-ztraining.
+*  IF sy-subrc eq 0.
+    IF lx_table-status_item NE '6' AND sy-subrc EQ 0.
+      return = 'This data is already exist. duplicate data is prohibited.'.
+      rt_type = 'E'.
+      IF BUTTON IS NOT INITIAL..
+        CLEAR : return, rt_type.
+      ENDIF.
+
+      IF lx_table-status_item EQ '0'.
+        CLEAR : return, rt_type.
+
+      CALL FUNCTION 'ZFM_VALID_9004'
+        EXPORTING
+          guid          = lx_table-guid
+        IMPORTING
+          ANSWER        = rt_type
+          RETURN        = return
+                .
+
+        CHECK rt_type eq '0'.
+
+*        lx_table-guid = zstruc-guid.
+        lx_table-status_item = '1'.
+        INSERT ztb_guidmap_9004  FROM lx_table.
+        COMMIT WORK.
+        return = 'Data Has been saved.'.
+        rt_type = 'S'.
+        GUID = lx_table-guid.
+      ENDIF.
+*    endif.
+    ELSE.
+
+      DELETE lt_table WHERE status_item EQ '6'.
+      DELETE lt_table WHERE zyear NE sy-datum(4).
+*   IF sy-subrc eq 0.
+      DESCRIBE TABLE lt_table LINES tabix.
+      IF tabix GE '2'.
+      RETURN = 'Plan Quota is Full. Only 2 Training a year.'.
+      RT_TYPE = 'E'.
+      ENDIF.
+*   ENDIF.
+
+      CHECK rt_type IS INITIAL.
+      CALL FUNCTION 'GUID_CREATE'
+        IMPORTING
+          ev_guid_32 = zstruc-guid.
+
+      guid = zstruc-guid.
+      INSERT ztb_guidmap_9004 FROM zstruc.
+      COMMIT WORK.
+      IF sy-subrc EQ 0.
+
+        return = 'Data Has been saved.'.
+        rt_type = 'S'.
+      ELSE.
+
+        return = 'Data Has not been saved.'.
+        rt_type = 'E'.
+      ENDIF.
+      CHECK note IS NOT INITIAL.
+
+      CALL FUNCTION 'ZHR_GET_UID'
+        EXPORTING
+          user      = sy-uname
+*         IMP_PERNR =
+        IMPORTING
+*         PERNR     =
+*         SUBRC     =
+          ename     = ename.
+
+
+      lx_note-guid    = zstruc-guid   .
+*    lx_note-SEQNR   = ZSTRUC-SEQNR  .
+      lx_note-usnt    = sy-uname   .
+      lx_note-udat    = sy-datum   .
+      lx_note-uzet    = sy-uzeit   .
+      lx_note-cnam    = ename   .
+      lx_note-wiid    = ''   .
+      lx_note-note    = note      .
+
+      IF zstruc-status_item EQ '1'.
+        lx_note-seqnr = '1'.
+      ENDIF.
+
+      INSERT ztb_guidmap_note FROM lx_note.
+
+      return = 'Data Has been saved.'.
+      rt_type = 'S'.
+    ENDIF.
+
+*commencing Workflow
+*CALL FUNCTION 'SAP_WAPI_CREATE_EVENT'" IN BACKGROUND TASK AS SEPARATE UNIT
+*    EXPORTING
+*      object_type     = 'ZBORLVRQST'
+**     object_type     = 'ZPERINFO'
+*      object_key      = objkey
+*      event           = 'Action'
+*      commit_work     = ' '
+*      event_language  = sy-langu
+*      language        = sy-langu
+*      user            = sy-uname
+*    TABLES
+*      input_container = lt_cont
+*      message_lines   = lt_msglines
+*      message_struct  = lt_msgstruc.
+
+  ENDIF.
+
+
+  data[] = lt_table[].
+ENDFUNCTION.
