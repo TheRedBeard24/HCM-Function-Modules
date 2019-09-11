@@ -1,0 +1,134 @@
+FUNCTION ZFM_VALID_9004.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(GUID) TYPE  GUID_32
+*"  EXPORTING
+*"     REFERENCE(ANSWER) TYPE  CHAR1
+*"     REFERENCE(RETURN) TYPE  CHAR255
+*"----------------------------------------------------------------------
+* Dictionary Answer.
+*  0 = Available
+*  X = Not Available
+*  A = No Data Found
+
+
+
+DATA : obj TYPE PLOG-OBJID.
+DATA : lt_table TYPE TABLE OF ztb_Guidmap_9004.
+DATA : lt_bupp  TYPE TABLE OF ztb_Guidmap_9004.
+DATA : lx_table TYPE ztb_Guidmap_9004.
+DATA : lx_bupp  TYPE ztb_Guidmap_9004.
+DATA : jadwal   TYPE hrobjid .
+DATA : count    TYPE int4 VALUE '1'.
+DATA : total    TYPE int4.
+DATA : lt_1024  TYPE TABLE OF p1024.
+DATA : lx_1024  TYPE p1024.
+
+DATA : zflg TYPE c.
+DATA : lt_oth  TYPE TABLE OF ztb_Guidmap_9004.
+DATA : lx_oth  TYPE ztb_Guidmap_9004.
+
+SELECT * FROM ztb_guidmap_9004 Into CORRESPONDING FIELDS OF TABLE lt_Table
+  WHERE guid = guid.
+
+IF lt_table IS INITIAL..
+  answer = 'A'.
+  return = 'Data Not Found'.
+ENDIF.
+
+CHECK lt_table IS NOT INITIAL.
+SORT lt_table DESCENDING by guid status_item.
+delete ADJACENT DUPLICATES FROM lt_table COMPARING guid status_item.
+
+READ TABLE lt_table INTO lx_table INDEX 1.
+jadwal = lx_table-zjadwal.
+
+SELECT * FROM ztb_guidmap_9004 INTO CORRESPONDING FIELDS OF TABLE lt_bupp
+  WHERE zjadwal = jadwal.
+
+lt_oth[] = lt_bupp[].
+SORT lt_bupp DESCENDING by guid status_item.
+DELETE ADJACENT DUPLICATES FROM lt_bupp COMPARING guid status_item.
+
+CLEAR count.
+*
+IF guid IS NOT  INITIAL.
+   count = 1.
+ENDIF.
+
+LOOP AT lt_bupp INTO lx_bupp WHERE status_item = '1'.
+  if lx_bupp-guid ne guid.
+  CLEAR zflg.
+  LOOP AT lt_oth INTO lx_oth WHERE guid = lx_bupp-guid AND status_item eq '6'.
+    zflg = 'X'.
+  ENDLOOP.
+  IF zflg IS INITIAL.
+  add 1 to count.
+  ENDIF.
+  ENDIF.
+ENDLOOP.
+
+*lt_oth[] = lt_bupp[].
+*LOOP AT lt_bupp INTO lx_bupp WHERE status_item = '0'.
+*  if lx_bupp-guid ne guid.
+*  CLEAR zflg.
+*  LOOP AT lt_oth INTO lx_oth WHERE guid = lx_bupp-guid AND status_item ne lx_bupp-status_item.
+*    zflg = 'X'.
+*  ENDLOOP.
+*  IF zflg IS INITIAL.
+*  add 1 to count.
+*  ENDIF.
+*  ENDIF.
+*ENDLOOP.
+
+obj = jadwal.
+CALL FUNCTION 'RH_READ_INFTY_NNNN'
+  EXPORTING
+*   AUTHORITY                   = 'DISP'
+*   WITH_STRU_AUTH              = 'X'
+    PLVAR                       = '01'
+    OTYPE                       = 'E'
+    OBJID                       = obj
+    infty                       = '1024'
+*   ISTAT                       = ' '
+*   EXTEND                      = 'X'
+*   SUBTY                       = ' '
+*   BEGDA                       = '19000101'
+*   ENDDA                       = '99991231'
+*   CONDITION                   = '00000'
+*   INFTB                       = '1'
+*   SORT                        = 'X'
+  tables
+    innnn                       = lt_1024
+*   OBJECTS                     =
+  EXCEPTIONS
+    NOTHING_FOUND               = 1
+    WRONG_CONDITION             = 2
+    INFOTYP_NOT_SUPPORTED       = 3
+    WRONG_PARAMETERS            = 4
+    OTHERS                      = 5
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+READ TABLE lt_1024 INTO lx_1024 WITH KEY istat = 2.
+*READ TABLE lt_1024 INTO lx_1024 WITH KEY istat = 1.
+IF sy-subrc eq 0.
+
+total = lx_1024-KAPZ3 - count.
+
+IF total lt 0.
+  answer = 'X'.
+  return = 'Quota Not Available for Jadwal'.
+ELSE.
+  answer = '0'.
+  return = 'Quota Available'.
+ENDIF.
+
+ELSE.
+  answer = 'X'.
+  return = 'No Planned Capacity Found'.
+ENDIF.
+
+ENDFUNCTION.
