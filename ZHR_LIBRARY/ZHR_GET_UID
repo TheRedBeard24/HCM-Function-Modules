@@ -1,0 +1,55 @@
+FUNCTION ZHR_GET_UID.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(USER) TYPE  UNAME
+*"     VALUE(IMP_PERNR) TYPE  PERNR_D OPTIONAL
+*"  EXPORTING
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     VALUE(ENAME) TYPE  EMNAM
+*"     REFERENCE(MAIL) TYPE  COMM_ID_LONG
+*"     REFERENCE(SNAME) TYPE  SMNAM
+*"     REFERENCE(EX_UNAME) TYPE  UNAME
+*"----------------------------------------------------------------------
+DATA: lx_pa105 TYPE pa0105.
+DATA: lx_pa0001 TYPE pa0001.
+DATA: lt_pa105 TYPE TABLE OF  pa0105.
+if user IS NOT INITIAL.
+SELECT   * FROM pa0105 INTO CORRESPONDING FIELDS OF TABLE lt_pa105
+  WHERE endda eq '99991231' AND
+        usrid eq  user AND usrty eq '0001'.
+  IF sy-subrc eq 0.
+    sort lt_pa105 DESCENDING by aedtm begda.
+    READ TABLE lt_pa105 INTO lx_pa105 INDEX 1.
+     pernr = lx_pa105-pernr.
+
+  ELSE.
+    subrc = 4.
+  ENDIF.
+  ENDIF.
+
+
+    IF imp_pernr IS not INITIAL.
+     pernr = imp_pernr .
+    ELSE.
+      imp_pernr = pernr.
+    ENDIF.
+
+    SELECT SINGLE * FROM pa0001 INTO CORRESPONDING FIELDS OF lx_pa0001
+      WHERE endda eq '99991231' AND pernr = imp_pernr.
+    ename = lx_pa0001-ename.
+    sname = lx_pa0001-sname.
+
+   DATA Lx_pa0105 TYPE pa0105.
+   SELECT SINGLE * FROM pa0105 INTO CORRESPONDING FIELDS OF lx_pa0105
+     WHERE endda = '99991231' AND usrty = '0010' AND pernr = imp_pernr.
+     MAIL = lx_pa0105-usrid_long.
+
+
+   SELECT SINGLE * FROM pa0105 INTO CORRESPONDING FIELDS OF lx_pa0105
+     WHERE endda = '99991231' AND usrty = '0001' AND pernr = imp_pernr.
+     EX_UNAME = lx_pa0105-usrid.
+
+
+ENDFUNCTION.
