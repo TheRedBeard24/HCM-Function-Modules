@@ -1,0 +1,37 @@
+FUNCTION ZHR_GET_MEM.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     VALUE(IMPORT) TYPE  CHAR1 OPTIONAL
+*"     VALUE(MEM) TYPE  CHAR30 OPTIONAL
+*"     VALUE(ID) TYPE  CHAR7 OPTIONAL
+*"  EXPORTING
+*"     VALUE(RESULT) TYPE  CHAR30
+*"----------------------------------------------------------------------
+
+   DATA : memid TYPE char10.
+*    DATA : mem  TYPE string.
+if id IS INITIAL.
+    CONCATENATE 'ZWD_' sy-datum INTO memid.
+*    import  mem to mem  FROM  MEMORY ID memid.
+ELSE.
+*    ID = 'DEVPLAN'.
+    CONCATENATE 'ZWD_' ID sy-datum INTO memid.
+ENDIF.
+
+
+IF import IS NOT INITIAL.
+  DELETE FROM MEMORY ID memid.
+  export mem to MEMORY id memid.
+
+ELSE.
+  import mem to mem FROM MEMORY id memid.
+  result = mem.
+
+*  DELETE FROM MEMORY ID memid.
+ENDIF.
+
+
+
+
+ENDFUNCTION.
