@@ -1,0 +1,229 @@
+FUNCTION ZHR_CREATE_KPI.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"     REFERENCE(OBJID) TYPE  HROBJID
+*"     VALUE(SIMULATE) TYPE  CHAR1 OPTIONAL
+*"     REFERENCE(IM_BEGDA) TYPE  DATUM OPTIONAL
+*"     REFERENCE(IM_ENDDA) TYPE  DATUM OPTIONAL
+*"  EXPORTING
+*"     REFERENCE(MESS) TYPE  CHAR100
+*"     REFERENCE(SUBRC) TYPE  SUBRC
+*"     REFERENCE(ZGUID) TYPE  GUID_32
+*"     REFERENCE(NAME_EMPLOYEE) TYPE  CHAR40
+*"     REFERENCE(NAME_SUPERIOR) TYPE  CHAR40
+*"     REFERENCE(NAME_OTHER) TYPE  CHAR40
+*"     REFERENCE(BEGDA) TYPE  DATUM
+*"     REFERENCE(ENDDA) TYPE  DATUM
+*"----------------------------------------------------------------------
+ TYPES:
+ BEGIN OF ty_text,
+         lines TYPE sy-tabix,
+         data TYPE c LENGTH 30,
+         value TYPE c LENGTH 132,
+         len TYPE int4,
+        END OF ty_text.
+DATA :
+
+      PLAN_VERSION        TYPE  HAP_PLAN_VERSION VALUE '01'     ,
+*     S_APPRAISAL_ID      TYPE  HAP_S_APPRAISAL_ID    ,
+      COMPLETE_DOCUMENT   TYPE  CHAR1 value 'X'       ,
+      ACTIONLOG_ACTIVE    TYPE  HAP_ACTIONLOG_ACTIVE  VALUE 'D' ,
+      OFFLINE_DEQUEUE     TYPE  HAP_OFFLINE_ID        .
+DATA :
+       gt_text   TYPE TABLE OF ty_text,
+       gx_text   TYPE ty_text.
+DATA  :
+ S_DOC_PROCESSING         TYPE  HAP_S_DOC_PROCESSING           ,
+ S_HEADER_TEXTS           TYPE  HAP_S_HEADER_TEXTS             ,
+ s_HEADER_APPRAISER       TYPE  HAP_s_HEADER_APPRAISER         ,
+ T_HEADER_APPRAISER       TYPE  HAP_T_HEADER_APPRAISER         ,
+ s_HEADER_APPRAISEE       TYPE  HAP_s_HEADER_APPRAISEE         ,
+ T_HEADER_APPRAISEE       TYPE  HAP_T_HEADER_APPRAISEE         ,
+ T_HEADER_PART_APPRAISER  TYPE  HAP_T_HEADER_PART_APPRAISERS   ,
+ s_HEADER_OTHERS          TYPE  HAP_s_HEADER_OTHERS            ,
+ T_HEADER_OTHERS          TYPE  HAP_T_HEADER_OTHERS            ,
+ S_HEADER_STATUS          TYPE  HAP_S_HEADER_STATUS            ,
+ S_HEADER_DATES           TYPE  HAP_S_HEADER_DATES             ,
+ T_HEADER_ADD_DATA        TYPE  HAP_T_HEADER_ADD_DATA          ,
+ S_HEADER_DISPLAY         TYPE  HAP_S_HEADER_DISPLAY           ,
+ T_BUTTONS                TYPE  HAP_T_BUTTONS                  ,
+ T_BODY_COLUMNS           TYPE  HAP_T_BODY_COLUMNS             ,
+ s_BODY_COLUMNS           TYPE  HAP_s_BODY_COLUMNS             ,
+ T_BODY_ELEMENTS          TYPE  HAP_T_BODY_ELEMENTS            ,
+ T_BODY_mod               TYPE  HAP_T_BODY_ELEMENTS            ,
+ s_BODY_ELEMENTS          TYPE  HAP_s_BODY_ELEMENTS            ,
+ T_BODY_ELEMENT_BUTTONS   TYPE  HAP_T_BODY_ELEMENT_BUTTONS     ,
+ T_BODY_ELEMENT_DESCR     TYPE  HAP_T_BODY_ELEMENT_DESCR       ,
+ T_BODY_CELLS             TYPE  HAP_T_BODY_CELLS               ,
+ s_BODY_CELLS             TYPE  HAP_S_BODY_CELLS               ,
+ T_BODY_cel_MOD           TYPE  HAP_T_BODY_CELLS               ,
+ T_BODY_CELL_VAL_VALUES   TYPE  HAP_T_BODY_CELL_VAL_VALUES     ,
+ T_BODY_CELL_VAL_RANGES   TYPE  HAP_T_BODY_CELL_VAL_RANGES     ,
+ T_BODY_CELL_VAL_C_LIKE   TYPE  HAP_T_BODY_CELL_VAL_C_LIKE     ,
+ T_BODY_CELL_VAL_DESCR    TYPE  HAP_T_BODY_CELL_VAL_DESCR      ,
+ T_BODY_CELL_NOTES        TYPE  HAP_T_BODY_CELL_NOTES          ,
+ s_BODY_CELL_NOTES        TYPE  HAP_s_BODY_CELL_NOTES          ,
+ T_STATUS_NOTES           TYPE  HAP_T_STATUS_NOTE              ,
+ T_STATUS_DESCRIPTION     TYPE  HAP_T_STATUS_DESCRIPTION       ,
+ S_RETURN                 TYPE  BAL_S_MSG                      ,
+ S_APPRAISAL_ID           TYPE  HAP_S_APPRAISAL_ID             ,
+ t_header_part_appraisers TYPE  HAP_T_HEADER_PART_APPRAISERS,
+ xRETURN                   type BAL_S_MSG ,
+ S_VALIDITY_PERIOD TYPE  HAP_S_PERIOD_VALIDITY.
+
+
+DATA :
+      IMP_PERNR  TYPE  PERNR_D,
+      SUPPERNR  TYPE  PERNR_D,
+      SUPPERNR2  TYPE  PERNR_D,
+       xEMPLOYEE TYPE p0001,
+       EMPLOYEE TYPE TABLE OF p0001.
+
+*DATA : objid TYPE PLOG-OBJID.
+DATA : pa0001 TYPE TABLE OF p0001.
+DATA : p0001 TYPE p0001.
+DATA : OBJECTS TYPE TABLE OF HROBJECT.
+*objid = IMP_PERNR = pernr.
+
+S_VALIDITY_PERIOD-ap_start_date = im_begda.
+S_VALIDITY_PERIOD-ap_end_date = im_endda.
+
+CALL FUNCTION 'HRHAP_TEMPLATE_GET_DETAIL'
+  EXPORTING
+*   ADD_ON_APPLICATION             =
+*   MODE                           = 'N'
+*   UI_MODE                        = ' '
+*   ADMINISTRATOR                  = ' '
+    plan_version                   = '01'
+    template_id                    = objid
+   S_VALIDITY_PERIOD              = S_VALIDITY_PERIOD
+*   S_DISPLAY_UI                   =
+ IMPORTING
+   S_APPRAISAL_ID                 = S_APPRAISAL_ID
+   S_HEADER_TEXTS                 = S_HEADER_TEXTS
+   S_HEADER_STATUS                = S_HEADER_STATUS
+   T_HEADER_ADD_DATA              = T_HEADER_ADD_DATA
+   S_HEADER_DISPLAY               = S_HEADER_DISPLAY
+   T_BUTTONS                      = T_BUTTONS
+   T_BODY_COLUMNS                 = T_BODY_COLUMNS
+   T_BODY_ELEMENTS                = T_BODY_ELEMENTS
+   T_BODY_ELEMENT_DESCR           = T_BODY_ELEMENT_DESCR
+   T_BODY_ELEMENT_BUTTONS         = T_BODY_ELEMENT_BUTTONS
+   T_BODY_CELLS                   = T_BODY_CELLS
+   T_BODY_CELL_VAL_VALUES         = T_BODY_CELL_VAL_VALUES
+   T_BODY_CELL_VAL_RANGES         = T_BODY_CELL_VAL_RANGES
+   T_BODY_CELL_VAL_C_LIKE         = T_BODY_CELL_VAL_C_LIKE
+   T_BODY_CELL_VAL_DESCR          = T_BODY_CELL_VAL_DESCR
+   T_BODY_CELL_NOTES              = T_BODY_CELL_NOTES
+   T_STATUS_DESCRIPTION           = T_STATUS_DESCRIPTION
+   S_RETURN                       = S_RETURN
+ CHANGING
+   S_DOC_PROCESSING               = S_DOC_PROCESSING
+   T_HEADER_APPRAISER             = T_HEADER_APPRAISER
+   T_HEADER_APPRAISEE             = T_HEADER_APPRAISEE
+   T_HEADER_PART_APPRAISERS       = T_HEADER_PART_APPRAISERS
+   T_HEADER_OTHERS                = T_HEADER_OTHERS
+   S_HEADER_DATES                 = S_HEADER_DATES
+          .
+if SIMULATE IS INITIAL.
+
+ S_DOC_PROCESSING-WORKFLOW_ACTIVE = abap_true.
+
+ IF im_begda is NOT INITIAL.
+   S_HEADER_DATES-ap_start_date = im_begda.
+ ENDIF.
+
+ IF im_endda is NOT INITIAL.
+   S_HEADER_DATES-ap_end_date = im_endda.
+ ENDIF.
+
+
+
+CALL FUNCTION 'HRHAP_DOCUMENT_CREATE'
+  EXPORTING
+    plan_version                   = '01'
+    t_header_appraiser             = T_HEADER_APPRAISER
+    t_header_appraisee             = T_HEADER_APPRAISEE
+    t_header_others                = T_HEADER_OTHERS
+    s_header_texts                 = S_HEADER_TEXTS
+    s_header_dates                 = S_HEADER_DATES
+    s_header_status                = S_HEADER_STATUS
+    s_header_display               = S_HEADER_DISPLAY
+    t_body_columns                 = T_BODY_COLUMNS
+    t_body_elements                = T_BODY_ELEMENTS
+    t_body_cells                   = T_BODY_CELLS
+    s_doc_processing               = S_DOC_PROCESSING
+*   NO_ACTION_LOG                  =
+*   VTASK                          = 'D'
+*   IV_APP_ADD_ON                  =
+*   IGNORE_COLUMN_NUMBER           =
+  IMPORTING
+    S_RETURN                       = xRETURN
+  CHANGING
+   S_APPRAISAL_ID                 = S_APPRAISAL_ID
+   t_header_part_appraisers       = t_header_part_appraisers " HAP_T_HEADER_PART_APPRAISERS
+   t_body_cell_notes              = T_BODY_CELL_NOTES
+   T_STATUS_NOTES                 = T_STATUS_NOTES
+          .
+ELSE.
+  READ TABLE T_HEADER_APPRAISEE INTO s_HEADER_APPRAISEE INDEX 1.
+  IF sy-subrc eq 0.
+    name_employee = s_header_appraisee-name.
+  ENDIF.
+
+  READ TABLE t_header_appraiser INTO s_header_appraiser INDEX 1.
+  IF sy-subrc eq 0.
+    name_superior = s_header_appraiser-name.
+  ENDIF.
+
+  READ TABLE T_HEADER_OTHERS INTO s_HEADER_OTHERS INDEX 1.
+  IF sy-subrc eq 0.
+    name_other = s_HEADER_OTHERS-name.
+  ENDIF.
+
+
+  begda = S_HEADER_DATES-ap_start_date.
+  endda = S_HEADER_DATES-ap_end_date.
+*endif.
+endif.
+*BREAK-POINT.
+*DATA Mess TYPE char100.
+IF xreturn-MSGTY eq 'S'.
+CONCATENATE 'Data Employee' Pernr 'is Successfully Saved.' INTO mess SEPARATED BY space.
+
+CALL FUNCTION 'HRHAP_DOC_COMMIT'
+ EXPORTING
+   PLAN_VERSION            = PLAN_VERSION
+   S_APPRAISAL_ID          = S_APPRAISAL_ID
+   COMPLETE_DOCUMENT       = COMPLETE_DOCUMENT
+   ACTIONLOG_ACTIVE        = ACTIONLOG_ACTIVE
+ CHANGING
+   OFFLINE_DEQUEUE         = OFFLINE_DEQUEUE
+          .
+
+
+SUBRC = 0.
+ELSEIF xreturn-MSGTY IS INITIAL.
+ CONCATENATE 'Data Employee' Pernr 'is Successfully Processed.' INTO mess SEPARATED BY space.
+SUBRC = 0.
+
+CALL FUNCTION 'HRHAP_DOC_COMMIT'
+ EXPORTING
+   PLAN_VERSION            = PLAN_VERSION
+   S_APPRAISAL_ID          = S_APPRAISAL_ID
+   COMPLETE_DOCUMENT       = COMPLETE_DOCUMENT
+   ACTIONLOG_ACTIVE        = ACTIONLOG_ACTIVE
+ CHANGING
+   OFFLINE_DEQUEUE         = OFFLINE_DEQUEUE
+          .
+ELSE.
+  SUBRC = 1.
+  mess = xreturn-msgv1.
+*  WRITE mess.
+ENDIF.
+
+
+ZGUID = S_APPRAISAL_ID-appraisal_id.
+ENDFUNCTION.
