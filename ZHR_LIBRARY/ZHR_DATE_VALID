@@ -1,0 +1,58 @@
+FUNCTION ZHR_DATE_VALID.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  EXPORTING
+*"     VALUE(ZDATE) TYPE  CHAR30
+*"     VALUE(SUBRC) TYPE  SUBRC
+*"----------------------------------------------------------------------
+
+
+
+  DATA : lt_table   TYPE TABLE OF ztb_gdmap9004_cf.
+  DATA : lx_table   TYPE ztb_gdmap9004_cf.
+  DATA : data_found TYPE char1.
+  DATA : month TYPE char10.
+
+*      DATA : mess TYPE CHAR255.
+  SELECT * FROM ztb_gdmap9004_cf   INTO CORRESPONDING FIELDS OF TABLE lt_table.
+  LOOP AT lt_table INTO lx_table.
+    IF sy-datum ge lx_table-begda  AND sy-datum le lx_table-endda.
+      data_found = 'X'.
+      exit.
+    ENDIF.
+  ENDLOOP.
+
+  IF data_found IS NOT INITIAL.
+    IF lx_table-zcheck IS NOT INITIAL.
+*      CHECK = 'X'.
+      CASE lx_table-deadline+4(2).
+        WHEN 01. month = 'Januari'.
+        WHEN 02. month = 'Februari'.
+        WHEN 03. month = 'Maret'.
+        WHEN 04. month = 'April'.
+        WHEN 05. month = 'Mei'.
+        WHEN 06. month = 'Juni'.
+        WHEN 07. month = 'July'.
+        WHEN 08. month = 'Agustus'.
+        WHEN 09. month = 'September'.
+        WHEN 10. month = 'Oktober'.
+        WHEN 11. month = 'November'.
+        WHEN 12. month = 'Dessember'.
+        WHEN OTHERS.
+      ENDCASE.
+      subrc = 0.
+*      ZDATE =
+      CONCATENATE lx_table-deadline+6(2)   month   lx_table-deadline(4) INTO ZDATE SEPARATED BY space.
+*      CONCATENATE lx_table-deadline+6(2) '.' lx_table-deadline+4(2) '.' lx_table-deadline(4) INTO ZDATE.
+
+    ELSE.
+      subrc = 4.
+*      CONCATENATE 'You have Reached out of the time to Fill RPI,' 'Please Contact your HR.' INTO mess SEPARATED BY space.
+*   me->send_error( lv_mess = mess ).
+    ENDIF.
+  ELSE.
+    subrc = 4.
+  ENDIF.
+
+
+ENDFUNCTION.
