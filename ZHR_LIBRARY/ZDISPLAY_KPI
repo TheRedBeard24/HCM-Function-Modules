@@ -1,0 +1,165 @@
+FUNCTION ZDISPLAY_KPI.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(ZGUID) TYPE  GUID_32 OPTIONAL
+*"     REFERENCE(FLAG) TYPE  CHAR1
+*"     REFERENCE(TEMPLATE) TYPE  OBJEKTID OPTIONAL
+*"----------------------------------------------------------------------
+
+*dict FLAG
+*FLAG = D (Document)
+*FLAG = T (Template)
+
+  DATA  :
+   s_doc_processing         TYPE  hap_s_doc_processing           ,
+   s_header_texts           TYPE  hap_s_header_texts             ,
+   s_header_appraiser       TYPE  hap_s_header_appraiser         ,
+   t_header_appraiser       TYPE  hap_t_header_appraiser         ,
+   s_header_appraisee       TYPE  hap_s_header_appraisee         ,
+   t_header_appraisee       TYPE  hap_t_header_appraisee         ,
+   t_header_part_appraiser  TYPE  hap_t_header_part_appraisers   ,
+   s_header_others          TYPE  hap_s_header_others            ,
+   t_header_others          TYPE  hap_t_header_others            ,
+   s_header_status          TYPE  hap_s_header_status            ,
+   s_header_dates           TYPE  hap_s_header_dates             ,
+   t_header_add_data        TYPE  hap_t_header_add_data          ,
+   s_header_display         TYPE  hap_s_header_display           ,
+   t_buttons                TYPE  hap_t_buttons                  ,
+   t_body_columns           TYPE  hap_t_body_columns             ,
+   s_body_columns           TYPE  hap_s_body_columns             ,
+   t_body_elements          TYPE  hap_t_body_elements            ,
+   T_BODY_elem_dummy        TYPE  hap_t_body_elements            ,
+   s_BODY_elem_dummy        TYPE  hap_s_body_elements            ,
+   t_body_cell_dummy        TYPE  hap_t_body_cells               ,
+   s_body_cell_dummy        TYPE  hap_s_body_cells               ,
+
+   t_body_mod               TYPE  hap_t_body_elements            ,
+   x_body_elements          TYPE  hap_s_body_elements            ,
+   c_body_elements          TYPE  hap_s_body_elements            ,
+   s_body_elements          TYPE  hap_s_body_elements            ,
+   t_body_element_buttons   TYPE  hap_t_body_element_buttons     ,
+   t_body_element_descr     TYPE  hap_t_body_element_descr       ,
+   t_body_cells             TYPE  hap_t_body_cells               ,
+   s_body_cells             TYPE  hap_s_body_cells               ,
+   t_body_cel_mod           TYPE  hap_t_body_cells               ,
+   t_body_cell_val_values   TYPE  hap_t_body_cell_val_values     ,
+   t_body_cell_val_ranges   TYPE  hap_t_body_cell_val_ranges     ,
+   t_body_cell_val_c_like   TYPE  hap_t_body_cell_val_c_like     ,
+   t_body_cell_val_descr    TYPE  hap_t_body_cell_val_descr      ,
+   t_body_cell_notes        TYPE  hap_t_body_cell_notes          ,
+   s_body_cell_notes        TYPE  hap_s_body_cell_notes          ,
+   t_status_notes           TYPE  hap_t_status_note              ,
+   t_status_description     TYPE  hap_t_status_description       ,
+   s_return                 TYPE  bal_s_msg                      ,
+   s_appraisal_id           TYPE  hap_s_appraisal_id             ,
+   t_header_part_appraisers TYPE  hap_t_header_part_appraisers,
+   xreturn                   TYPE bal_s_msg ,
+   plan_version    TYPE  hap_plan_version   VALUE '01'   ,
+   doc_enqueue     TYPE  hap_doc_enqueue      .
+
+if flag eq 'D'.
+s_appraisal_id-appraisal_id = zguid.
+    s_appraisal_id-part_ap_id = '0000'.
+
+  CALL FUNCTION 'HRHAP_DOCUMENT_ENQUEUE'
+    EXPORTING
+      plan_version   = plan_version
+      s_appraisal_id = s_appraisal_id
+    IMPORTING
+      s_return       = s_return
+    CHANGING
+      doc_enqueue    = doc_enqueue.
+
+  CALL FUNCTION 'HRHAP_DOCUMENT_GET_DETAIL'
+    EXPORTING
+*     ADD_ON_APPLICATION      =
+*     MODE                    = ' '
+*     UI_MODE                 = ' '
+      plan_version            = '01'
+      s_appraisal_id          = s_appraisal_id
+*     ADMINISTRATOR           = ' '
+*     S_DISPLAY_UI            =
+*     NO_ACTION_LOG           = ' '
+*     IGNORE_COLUMN_NUMBER    =
+    IMPORTING
+      s_doc_processing        = s_doc_processing
+      s_header_texts          = s_header_texts
+      t_header_appraiser      = t_header_appraiser
+      t_header_appraisee      = t_header_appraisee
+      t_header_part_appraiser = t_header_part_appraiser
+      t_header_others         = t_header_others
+      s_header_status         = s_header_status
+      s_header_dates          = s_header_dates
+      t_header_add_data       = t_header_add_data
+      s_header_display        = s_header_display
+      t_buttons               = t_buttons
+      t_body_columns          = t_body_columns
+      t_body_elements         = t_body_elements
+      t_body_element_buttons  = t_body_element_buttons
+      t_body_element_descr    = t_body_element_descr
+      t_body_cells            = t_body_cells
+      t_body_cell_val_values  = t_body_cell_val_values
+      t_body_cell_val_ranges  = t_body_cell_val_ranges
+      t_body_cell_val_c_like  = t_body_cell_val_c_like
+      t_body_cell_val_descr   = t_body_cell_val_descr
+      t_body_cell_notes       = t_body_cell_notes
+      t_status_notes          = t_status_notes
+      t_status_description    = t_status_description
+      s_return                = s_return.
+
+
+ CALL FUNCTION 'HRHAP_DOCUMENT_DEQUEUE'
+        EXPORTING
+          plan_version   = plan_version
+          s_appraisal_id = s_appraisal_id
+        IMPORTING
+          s_return       = s_return
+        CHANGING
+          doc_enqueue    = doc_enqueue.
+
+ELSEIF flag eq 'T'.
+
+    CALL FUNCTION 'HRHAP_TEMPLATE_GET_DETAIL'
+      EXPORTING
+*       ADD_ON_APPLICATION             =
+*       MODE                           = 'N'
+*       UI_MODE                        = ' '
+*       ADMINISTRATOR                  = ' '
+        plan_version                   = '01'
+        template_id                    = template
+*       S_VALIDITY_PERIOD              =
+*       S_DISPLAY_UI                   =
+     IMPORTING
+       S_APPRAISAL_ID                 =  S_APPRAISAL_ID
+       S_HEADER_TEXTS                 =  S_HEADER_TEXTS
+       S_HEADER_STATUS                =  S_HEADER_STATUS
+       T_HEADER_ADD_DATA              =  T_HEADER_ADD_DATA
+       S_HEADER_DISPLAY               =  S_HEADER_DISPLAY
+       T_BUTTONS                      =  T_BUTTONS
+       T_BODY_COLUMNS                 =  T_BODY_COLUMNS
+       T_BODY_ELEMENTS                =  T_BODY_ELEMENTS
+       T_BODY_ELEMENT_DESCR           =  T_BODY_ELEMENT_DESCR
+       T_BODY_ELEMENT_BUTTONS         =  T_BODY_ELEMENT_BUTTONS
+       T_BODY_CELLS                   =  T_BODY_CELLS
+       T_BODY_CELL_VAL_VALUES         =  T_BODY_CELL_VAL_VALUES
+       T_BODY_CELL_VAL_RANGES         =  T_BODY_CELL_VAL_RANGES
+       T_BODY_CELL_VAL_C_LIKE         =  T_BODY_CELL_VAL_C_LIKE
+       T_BODY_CELL_VAL_DESCR          =  T_BODY_CELL_VAL_DESCR
+       T_BODY_CELL_NOTES              =  T_BODY_CELL_NOTES
+       T_STATUS_DESCRIPTION           =  T_STATUS_DESCRIPTION
+       S_RETURN                       =  S_RETURN
+     CHANGING
+       S_DOC_PROCESSING               =  S_DOC_PROCESSING
+       T_HEADER_APPRAISER             =  T_HEADER_APPRAISER
+       T_HEADER_APPRAISEE             =  T_HEADER_APPRAISEE
+       T_HEADER_PART_APPRAISERS       =  T_HEADER_PART_APPRAISERS
+       T_HEADER_OTHERS                =  T_HEADER_OTHERS
+       S_HEADER_DATES                 =  S_HEADER_DATES
+              .
+
+
+
+ENDIF.
+
+ENDFUNCTION.
