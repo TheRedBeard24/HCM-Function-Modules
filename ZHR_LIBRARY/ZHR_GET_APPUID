@@ -1,0 +1,54 @@
+FUNCTION ZHR_GET_APPUID.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"  EXPORTING
+*"     REFERENCE(APP_PERNR) TYPE  PERNR_D
+*"     REFERENCE(APP_MAIL) TYPE  COMM_ID_LONG
+*"     REFERENCE(APP_NAME) TYPE  EMNAM
+*"----------------------------------------------------------------------
+
+DATA :  lv_PERNR TYPE  PERNR_D         ,
+        lv_SUBRC TYPE  SUBRC           ,
+        lv_ENAME TYPE  EMNAM           ,
+        lv_MAIL  TYPE  COMM_ID_LONG    ,
+        lx_pa0001 TYPE pa0001,
+        lxa_1001 TYPE hrp1001,
+        lxb_1001 TYPE hrp1001,
+        objid    TYPE hrobjid.
+
+SELECT SINGLE * FROM pa0001 into CORRESPONDING FIELDS OF lx_pa0001
+  WHERE endda = '99991231' AND pernr = pernr.
+  CHECK lx_pa0001 IS NOT INITIAL.
+  objid = lx_pa0001-plans.
+
+  SELECT SINGLE * FROM hrp1001 INTO CORRESPONDING FIELDS OF lxa_1001
+    WHERE endda = '99991231' AND objid = objid AND otype = 'S'
+    AND relat = '002' AND rsign = 'A' .
+    CHECK lxa_1001 IS NOT INITIAL.
+
+objid = lxa_1001-sobid(8).
+SELECT SINGLE * FROM hrp1001 INTO CORRESPONDING FIELDS OF lxb_1001
+  WHERE endda = '99991231' AND objid = objid AND sclas = 'P'.
+  CHECK lxb_1001 IS NOT INITIAL.
+
+  APP_PERNR = lv_pernr = lxb_1001-sobid(8).
+
+  CALL FUNCTION 'ZHR_GET_UID'
+    EXPORTING
+      user            = sy-uname
+      IMP_PERNR       = lv_pernr
+    IMPORTING
+      PERNR           = lv_PERNR
+      SUBRC           = lv_SUBRC
+      ENAME           = lv_ENAME
+      MAIL            = lv_MAIL
+            .
+
+*APP_PERNR = lv_PERNR   .
+APP_MAIL  = lv_MAIL    .
+APP_NAME  = lv_ENAME   .
+
+
+ENDFUNCTION.
