@@ -1,0 +1,195 @@
+FUNCTION ZHR_SENT_MAIL_REJ.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(NAME) TYPE  EMNAM
+*"     REFERENCE(GUID) TYPE  GUID_32 OPTIONAL
+*"  TABLES
+*"      CONTENT STRUCTURE  SOLISTI1
+*"----------------------------------------------------------------------
+
+DATA : xcontent TYPE SO_TEXT255.
+
+  DATA char TYPE c LENGTH 255.
+define mail.
+CONCATENATE &1 space INTO char.
+append char to content.
+end-OF-DEFINITION.
+
+DATA : lt_table TYPE TABLE OF ztb_guidmap_9004.
+DATA : lx_table TYPE ztb_guidmap_9004.
+
+
+DATA : zurl TYPE char30 VALUE 'http://portalsdm.bpmigas.com/'.
+DATA : zmail TYPE c LENGTH 255." VALUE 'http://portalsdm.bpmigas.com/'.
+IF sy-SYSID eq 'BED'.
+zurl = 'http://portaldev.bpmigas.com/'.
+ENDIF.
+
+*CONCATENATE '<td><a href="' zurl '"><p><strong>' zurl '</strong></p></a></td>' INTO zmail.
+*mail zmail.
+
+
+SELECT * FROM ztb_guidmap_9004 INTO CORRESPONDING FIELDS OF TABLE lt_table
+  WHERE   guid = guid.
+
+SORT lt_table DESCENDING by status_item.
+READ TABLE lt_table INTO lx_table INDEX 1.
+
+DATA :
+      PERNR           TYPE  PERNR_D ,
+      OBJID           TYPE  SOBID   ,
+      TEXT            TYPE  CHAR1 VALUE 'X'  ,
+      OTYPE           TYPE  OTYPE   ,
+      JADWAL          TYPE  CHAR1   ,
+      xNAME            TYPE  CHAR50  ,
+      training        TYPE  CHAR50  ,
+      tanggal         TYPE  CHAR50  ,
+      CHARACTERISTIC  TYPE  CHAR1   ,
+      BEGDA           TYPE  DATUM   ,
+      ENDDA           TYPE  DATUM   .
+
+
+OTYPE = 'D'.
+objid = lx_table-ztraining.
+
+CALL FUNCTION 'ZHR_GET_1000'
+  EXPORTING
+    pernr                = '00000000'
+    objid                = OBJID
+    TEXT                 = TEXT
+    OTYPE                = OTYPE
+    JADWAL               = JADWAL
+  IMPORTING
+    NAME                 = xNAME
+    CHARACTERISTIC       = CHARACTERISTIC
+  CHANGING
+    BEGDA                = BEGDA
+    ENDDA                = ENDDA
+          .
+ training = xNAME.
+*CONCATENATE OBJID '-' training INTO training SEPARATED BY space.
+
+OTYPE  = 'E'.
+objid  = lx_table-zjadwal.
+JADWAL = 'X'.
+
+CALL FUNCTION 'ZHR_GET_1000'
+  EXPORTING
+    pernr                = '00000000'
+    objid                = OBJID
+    TEXT                 = TEXT
+    OTYPE                = OTYPE
+    JADWAL               = JADWAL
+  IMPORTING
+    NAME                 = xNAME
+    CHARACTERISTIC       = CHARACTERISTIC
+  CHANGING
+    BEGDA                = BEGDA
+    ENDDA                = ENDDA
+          .
+ tanggal = xNAME.
+
+
+mail '<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">'.
+mail '<html xmlns="http://www.w3.org/1999/xhtml">'.
+mail '<head>'.
+mail '<!-- HTML Codes by Quackit.com -->'.
+mail '<title>'.
+mail 'Title appears in the browsers title bar...</title>'.
+mail '<meta name="keywords" content="Separate keywords or phrases with a comma (example: html code generator, generate html, ...)">'.
+mail '<meta name="description" content="Make it nice and short, but descriptive. The description may appear in search engines search results pages...">'.
+mail '</head>'.
+mail '<body>'.
+mail '<div style="width:100%;height:100%;background-color:#ffffff;background-repeat:no-repeat;background-position:top left;background-attachment:fixed;">'.
+mail '<h4 style="font-family:Arial;color:#000000;">Kepada Yth.</h4> '.
+*mail '<h4 style="font-family:Arial;color:#000000;">EMP_NAME</h4>'.
+CONCATENATE '<h4 style="font-family:Arial;color:#000000;">' NAME '</h4>' INTO char.
+append char to content.
+*mail '<p>&nbsp;</p>'.
+*mail '<p>Sesuai dengan hasil <em>review</em> atasan Bapak/Ibu yang telah dilakukan, dapat kami sampaikan bahwa usulan program pelatihan yang telah disusun melalui Rencana Pembelajaran Individu (RPI) untuk saat ini <strong>PERLU DILAKUKAN PERBAIKAN'.
+*mail ' </strong>lebih lanjut. Adapun <em>review</em> terkait pelatihan dimaksud dapat dilihat pada tautan sbb :</p>'.
+*mail '<a href="http://portaldev.bpmigas.com"><p><strong>http://portaldev.bpmigas.com/irj/portal</strong></p></a>'.
+*mail '<p>Batas waktu penyampaian usulan Rencana Pembelajaran Individu (RPI) pegawai adalah tanggal <strong>28 Februari 2019</strong> untuk selanjutnya dilakukan review oleh Divisi SDM SKK Migas guna mendapatkan persetujuan Manajemen '.
+*mail 'SKK Migas lebih lanjut.</p>'.
+*mail '<p>Demikian disampaikan, atas perhatiannya kami ucapkan terima kasih.</p>'.
+*mail '<p>Salam,</p>'.
+*mail '<p>Divisi Sumber Daya Manusia</p>'.
+*mail '</div>'.
+*mail '</body>'.
+*mail '</html>'.
+
+* mail '<p>&nbsp;</p>'.
+* mail '<p>Berdasarkan hasil <em>review</em> yang telah dilakukan oleh atasan Bapak/Ibu terkait usulan Rencana Pembeljaaran Individu (RPI) yang telah disusun sebelumnya maka informasi lebih lanjut dapat Bapak/Ibu akses melalui tautan sbb :&nbsp; .</p>'.
+* mail '<a href="http://portaldev.bpmigas.com"><p><strong>http://portaldev.bpmigas.com</strong></p></a>'.
+* mail '<p>Apabila terdapat usulan program yang perlu dilakukan perbaikan maka batas waktu penyampaian usulan Rencana Pembelajaran Individu (RPI) pegawai '.
+* mail 'adalah tanggal <strong>15 Maret 2019</strong> untuk selanjutnya dilakukan review oleh Divisi SDM SKK Migas guna mendapatkan persetujuan Manajemen SKK Migas lebih lanjut.</p>'.
+* mail '<p>Demikian disampaikan, atas perhatiannya kami ucapkan terima kasih.</p>'.
+* mail '<p>Salam,</p>'.
+* mail '<p>Divisi Sumber Daya Manusia</p>'.
+
+mail '<p>Sesuai dengan hasil <em>review</em> atasan Bapak/Ibu yang telah dilakukan, dapat kami sampaikan bahwa usulan program pelatihan yang telah disusun melalui Rencana Pembelajaran Individu (RPI) sbb :</p>'.
+mail '<table border = "1">'.
+mail '<tbody>'.
+mail '<tr>'.
+mail '<td width="310">'.
+mail '<p><strong>Judul Pembelajaran</strong></p>'.
+mail '</td>'.
+mail '<td width="310">'.
+mail '<p><strong>Tanggal Pelaksanaan</strong></p>'.
+mail '</td>'.
+mail '</tr>'.
+mail '<tr>'.
+mail '<td width="310">'.
+*mail '<p>&hellip;&hellip;.</p>'.
+CONCATENATE '<p>' training '</p>' INTO char.
+append char to content.
+mail '</td>'.
+mail '<td width="310">'.
+*mail '<p>&hellip;&hellip;</p>'.
+CONCATENATE '<p>' tanggal '</p>' INTO char.
+append char to content.
+mail '</td>'.
+mail '</tr>'.
+mail '</tbody>'.
+mail '</table>'.
+mail '<p><br /> <strong>PERLU DILAKUKAN PERBAIKAN </strong>lebih lanjut. Adapun <em>review</em> terkait pelatihan dimaksud dapat dilihat pada tautan sbb :</p>'.
+mail '<table border="1">'.
+mail '<tbody>'.
+mail '<tr>'.
+mail '<td width="623">'.
+*mail '<a href="http://portaldev.bpmigas.com"><p><strong>http://portaldev.bpmigas.com</strong></p></a>'.
+
+DATA :
+       ZDATE type char30,
+       SUBRC type subrc.
+CALL FUNCTION 'ZHR_DATE_VALID'
+ IMPORTING
+   ZDATE         = ZDATE
+   SUBRC         = SUBRC
+          .
+
+
+CONCATENATE '<td><a href="' zurl '"><p><strong>' zurl '</strong></p></a></td>' INTO zmail.
+mail zmail.
+*mail '<p><strong>http://......................................................</strong></p>'.
+mail '</td>'.
+mail '</tr>'.
+mail '</tbody>'.
+mail '</table>'.
+mail '<p>&nbsp;</p>'.
+
+mail '<p>Batas waktu penyampaian usulan Rencana Pembelajaran Individu (RPI) pegawai adalah tanggal <strong>' .
+mail ZDATE.
+mail '</strong> '.
+
+*mail '<p>Batas waktu penyampaian usulan Rencana Pembelajaran Individu (RPI) pegawai adalah tanggal <strong>17 Mei 2019</strong> '.
+mail 'untuk selanjutnya dilakukan evaluasi oleh Divisi SDM SKK Migas guna mendapatkan persetujuan Manajemen SKK Migas lebih lanjut.</p>'.
+mail '<p>&nbsp;</p>'.
+mail '<p>Demikian disampaikan, atas perhatiannya kami ucapkan terima kasih.</p>'.
+mail '<p>Salam,</p>'.
+mail '<p>Divisi Sumber Daya Manusia</p>'.
+
+
+
+ENDFUNCTION.
