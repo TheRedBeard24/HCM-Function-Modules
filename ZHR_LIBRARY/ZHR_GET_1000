@@ -1,0 +1,142 @@
+FUNCTION ZHR_GET_1000.
+*"----------------------------------------------------------------------
+*"*"Local Interface:
+*"  IMPORTING
+*"     REFERENCE(PERNR) TYPE  PERNR_D
+*"     REFERENCE(OBJID) TYPE  SOBID
+*"     REFERENCE(TEXT) TYPE  CHAR1 OPTIONAL
+*"     REFERENCE(OTYPE) TYPE  OTYPE OPTIONAL
+*"     REFERENCE(JADWAL) TYPE  CHAR1 OPTIONAL
+*"  EXPORTING
+*"     REFERENCE(NAME) TYPE  CHAR50
+*"     REFERENCE(CHARACTERISTIC) TYPE  CHAR1
+*"  CHANGING
+*"     REFERENCE(BEGDA) TYPE  DATUM OPTIONAL
+*"     REFERENCE(ENDDA) TYPE  DATUM OPTIONAL
+*"----------------------------------------------------------------------
+DATA : p1000 TYPE TABLE OF p1000,
+       x1000 TYPE p1000,
+       xOBJID TYPE  OBJEC-OBJID,
+       xQUALIFID type  HRWPC_S_QUALIFICATION-QUALIFID,
+       qual_tab TYPE   HRWPC_T_QUALIFICATION,
+       xqual_tab TYPE HRWPC_S_QUALIFICATIOn,
+       iobjid TYPE PLOG-OBJID.
+
+IF BEGDA IS INITIAL.
+   begda = '19000101'.
+ENDIF.
+
+IF ENDDA IS INITIAL.
+   endda = '99991231'.
+ENDIF.
+
+if text IS INITIAL.
+iobjid = OBJID.
+
+CALL FUNCTION 'RH_READ_INFTY_1000'
+ EXPORTING
+   AUTHORITY              = 'DISP'
+   WITH_STRU_AUTH         = 'X'
+   PLVAR                  = '01'
+   OTYPE                  = 'Q'
+   OBJID                  = iobjid
+   ISTAT                  = ' '
+   EXTEND                 = 'X'
+   BEGDA                  = BEGDA
+   ENDDA                  = ENDDA
+   CONDITION              = '00000'
+   SORT                   = 'X'
+  TABLES
+    i1000                  = p1000
+*   OBJECTS                =
+  EXCEPTIONS
+    NOTHING_FOUND          = 1
+    WRONG_CONDITION        = 2
+    WRONG_PARAMETERS       = 3
+    OTHERS                 = 4
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
+xobjid    = PERNR.
+xqualifid = OBJID(8).
+CALL FUNCTION 'HRWPC_RFC_QUALIFICATION_STAFF'
+  EXPORTING
+    PLVAR                    = '01'
+    otype                    = 'P'
+    objid                    = xobjid
+    qualifid                 = xqualifid
+ IMPORTING
+   STAFF_QUALIFIC_TAB       = qual_tab
+ EXCEPTIONS
+   NOTHING_FOUND            = 1
+   OTHERS                   = 2
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
+READ TABLE p1000 INTO x1000 WITH KEY  endda = '99991231'.
+IF sy-subrc eq 0.
+NAME = x1000-stext.
+ENDIF.
+
+READ TABLE qual_tab INTO xqual_tab INDEX 1.
+characteristic =  xqual_tab-characteristic.
+
+ELSE.
+
+iobjid = OBJID.
+CALL FUNCTION 'RH_READ_INFTY_1000'
+ EXPORTING
+   AUTHORITY              = 'DISP'
+   WITH_STRU_AUTH         = 'X'
+   PLVAR                  = '01'
+   OTYPE                  = OTYPE
+   OBJID                  = iobjid
+*   ISTAT                  = '1'
+   EXTEND                 = 'X'
+   BEGDA                  = BEGDA
+   ENDDA                  = ENDDA
+   CONDITION              = '00000'
+   SORT                   = 'X'
+  TABLES
+    i1000                  = p1000
+*   OBJECTS                =
+  EXCEPTIONS
+    NOTHING_FOUND          = 1
+    WRONG_CONDITION        = 2
+    WRONG_PARAMETERS       = 3
+    OTHERS                 = 4
+          .
+IF sy-subrc <> 0.
+* Implement suitable error handling here
+ENDIF.
+
+*BEGDA
+*ENDDA
+READ TABLE p1000 INTO x1000 WITH KEY otype = OTYPE endda = ENDDA.
+IF sy-subrc eq 0.
+  NAME = x1000-stext.
+ENDIF.
+
+IF jadwal IS NOT INITIAL.
+  sort p1000 DESCENDING by endda.
+
+  READ TABLE p1000 INTO x1000 INDEX 1.
+  IF sy-subrc eq 0.
+DATA : LV_BEGDA TYPE C LENGTH 10.
+DATA : LV_ENDDA TYPE C LENGTH 10.
+DATA : TEXT2 TYPE C LENGTH 40.
+        CONCATENATE x1000-begda+6(2) '.' x1000-begda+4(2) '.'
+         x1000-BEGDA(4) INTO LV_BEGDA.
+        CONCATENATE x1000-ENDDA+6(2) '.' x1000-ENDDA+4(2) '.'
+         x1000-ENDDA(4) INTO LV_ENDDA.
+         CONCATENATE LV_BEGDA '-' LV_ENDDA INTO TEXT2 SEPARATED BY SPACE.
+         name = TEXT2.
+  ENDIF.
+ENDIF.
+
+ENDIF.
+ENDFUNCTION.
